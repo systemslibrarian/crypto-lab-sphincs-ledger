@@ -10,9 +10,16 @@ Part of the [crypto-compare](https://github.com/systemslibrarian/crypto-compare)
 
 1. **Hash-only security** — SPHINCS+ security reduces entirely to SHA-256 collision resistance. No algebraic assumptions (factoring, discrete log, lattice problems).
 2. **Merkle tree mechanics** — Real SHA-256 Merkle trees built and verified in the browser, with authentication path visualization and step-by-step root recomputation.
-3. **WOTS+ one-time property** — Simplified Winternitz hash-chain demonstration showing why keys must only be used once, with a reuse warning when a second distinct message is signed.
-4. **Ledger signing** — Append-only ledger of SPHINCS+ signed entries with tamper detection. Each entry generates a fresh keypair — no shared keys or PKI required.
-5. **Parameter set comparison** — All four SHA-2 parameter sets (128f, 128s, 256f, 256s) with measured signing times and size comparisons against RSA, Ed25519, and ML-DSA.
+3. **WOTS+ one-time property — and its catastrophic failure on reuse** — Winternitz hash-chain demonstration that now shows the *actual* reuse failure, not just a warning: revealed chain points accumulate across signatures, and a **Forge & Verify** control reconstructs a higher chain value by hashing the lowest revealed point forward (no private seed) and verifies the forgery against the real public key. Reuse detection is per-chain and honest.
+4. **FORS (Forest Of Random Subsets), FIPS 205 §8** — The message digest is sliced into *k* fields of *a* bits via `base_2b` (implemented exactly per FIPS 205 Algorithm 4), each selecting one leaf per tree; *k* roots are hashed into the FORS public key. This is where the real `k`, `a`, `t` finally surface in the UI.
+5. **Hypertree** — The *d* layers of XMSS trees, each root signed by a WOTS+ leaf one layer up, climbing to the top root = public key. Annotates the size story (FORS sig + *d* × (WOTS+ sig + auth path)) that explains the 8 KB–50 KB signatures.
+6. **Collision tolerance** — Signs two messages with the same key, compares the two *k*-index vectors, and contrasts FORS's graceful degradation (few-time security → why SLH-DSA is stateless) against WOTS+'s catastrophic reuse.
+7. **Ledger signing** — Append-only ledger of SPHINCS+ signed entries with tamper detection. Each entry generates a fresh keypair — no shared keys or PKI required.
+8. **Parameter set comparison** — All four SHA-2 parameter sets (128f, 128s, 256f, 256s) with measured signing times and size comparisons against RSA, Ed25519, and ML-DSA.
+
+### Where the real parameters now come from
+
+The FORS and Hypertree tabs surface the internal parameters (`k`, `a`, `t`, `d`, `h`, `h′`) that were previously invisible. **These values are read directly from `@noble/post-quantum`'s exported `PARAMS` table** — the same library that performs the actual signing — not re-typed by hand. The noble *signer* object only exposes `keygen`/`sign`/`verify`/`lengths`; the numeric parameters live in the separately-exported `PARAMS` record, which `src/crypto/params.ts` imports.
 
 ## Run Locally
 
@@ -50,15 +57,42 @@ Output goes to `dist/`. The demo runs fully offline — no external CDN dependen
 - **f (fast):** Larger signatures, faster signing
 - **s (small):** Smaller signatures, slower signing
 
+### Internal Structural Parameters (FIPS 205 Table 2, surfaced in the FORS/Hypertree tabs)
+
+Read live from `@noble/post-quantum`'s `PARAMS`. Note that the FORS parameters differ
+substantially between the `f` and `s` variants — the `f` sets use **many short** FORS trees,
+the `s` sets use **fewer tall** ones:
+
+| Parameter Set | FORS k | FORS a | FORS t=2^a | Layers d | Height h | h′=h/d |
+|---|---|---|---|---|---|---|
+| SLH-DSA-SHA2-128s | 14 | 12 | 4,096 | 7 | 63 | 9 |
+| SLH-DSA-SHA2-128f | 33 | 6 | 64 | 22 | 66 | 3 |
+| SLH-DSA-SHA2-256s | 22 | 14 | 16,384 | 8 | 64 | 8 |
+| SLH-DSA-SHA2-256f | 35 | 9 | 512 | 17 | 68 | 4 |
+
 ## What Is Illustrative vs Production
 
 | Component | Status |
 |---|---|
 | SPHINCS+ sign/verify (`@noble/post-quantum`) | **Production** — audited library implementing FIPS 205 |
 | SHA-256 hashing (Web Crypto API) | **Production** — browser-native implementation |
+| Parameter values `k, a, t, d, h, h′` | **Real** — read live from noble's exported `PARAMS` (FIPS 205 Table 2) |
+| `base_2b` digest→index slicing (FORS) | **Spec-exact** — FIPS 205 Algorithm 4, unit-tested |
 | Merkle tree visualization | **Illustrative** — real SHA-256, simplified structure (up to 16 leaves) |
-| WOTS+ chain demonstration | **Illustrative** — shows hash-chain concept, not full WOTS+ spec |
+| WOTS+ chain + reuse forgery | **Illustrative** — real SHA-256 chains; the forgery is a genuine hash-forward that verifies against the public key, but on a simplified single-chain (no Winternitz checksum) |
+| FORS trees + public key | **Parallel reconstruction** — our own model (noble exposes no FORS internals); trees drawn/rooted at reduced height, digest modeled with SHA-256 + MGF1 |
+| Hypertree diagram | **Illustrative** — real `d`/`h`/`h′`; XMSS trees drawn as schematic triangles |
+| Collision security margin | **Illustrative estimate** — a rough bound, explicitly not a proof |
 | Ledger | **Demo** — sessionStorage persistence, no consensus or networking |
+
+## Honesty Notes / KNOWN-GAPS
+
+- **Parameter internals are now surfaced, and they are real.** The FORS and Hypertree tabs read `k, a, t, d, h, h′` from `@noble/post-quantum`'s exported `PARAMS` — the same library that signs. They are not hand-typed constants.
+- **FORS/Hypertree are a *parallel pedagogical reconstruction*, not an inspection of noble.** noble's public API exposes only `keygen`/`sign`/`verify`/`lengths` on the signer — never its internal FORS leaves, trees, or hypertree nodes. So those structures are an independent educational model in `src/crypto/fors.ts` and `src/visualization/`. Only the parameter *values* come from noble; the constructions do not.
+- **SHA-2 only. No SHAKE/SHA-3 anywhere.** Every hash in this demo is SHA-256 (Web Crypto). The four parameter sets are the SHA-2 variants only.
+- **No 192-bit tier.** Only 128- and 256-bit, each in `f` (fast) and `s` (small). This matches the four sets wired to noble in Tab 1.
+- **Display-scaled / reconstructed values** are enumerated in `NOTES-scaled-values.md`. In short: FORS trees are drawn and rooted at a reduced height (real `t` = 64–16,384 leaves is too many to draw or hash literally — the real index/`t` is always printed on the amber leaf); the FORS digest is modeled with SHA-256 + MGF1 rather than the full FIPS 205 transcript hash; XMSS trees in the hypertree are schematic triangles; and the WOTS+ chain omits the Winternitz checksum, so the forgery demo shows the "reveal a low value → forge higher values" failure directly.
+- **The collision security-margin counter is illustrative**, computed as `[1 − (1 − 1/t)^N]^k`. Real SPHINCS+ bounds are tighter and account for randomized `H_msg` and grafting.
 
 ## Stack
 

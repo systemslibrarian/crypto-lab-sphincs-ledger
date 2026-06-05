@@ -14,11 +14,16 @@ import {
   generateWotsKeyPair,
   wotsSign,
   wotsVerify,
+  wotsForge,
   checkReuseWarning,
   type WotsKeyPair,
   type WotsSignatureResult,
 } from './crypto/wots';
 import { renderWotsChain } from './visualization/wots-chain';
+import { getStructuralParams } from './crypto/params';
+import { computeForsIndices, buildFors, illustrativeForgeryProbability } from './crypto/fors';
+import { renderFors } from './visualization/fors';
+import { renderHypertree } from './visualization/hypertree';
 import { Ledger } from './ledger/ledger';
 
 type ThemeMode = 'dark' | 'light';
@@ -296,10 +301,23 @@ const btnWotsSign = document.getElementById('btn-wots-sign') as HTMLButtonElemen
 const btnWotsVerify = document.getElementById('btn-wots-verify') as HTMLButtonElement;
 const wotsReuseWarning = document.getElementById('wots-reuse-warning')!;
 const wotsOutput = document.getElementById('wots-output')!;
+const wotsForgeControls = document.getElementById('wots-forge-controls')!;
+const wotsForgeChain = document.getElementById('wots-forge-chain') as HTMLInputElement;
+const wotsForgeStep = document.getElementById('wots-forge-step') as HTMLInputElement;
+const btnWotsForge = document.getElementById('btn-wots-forge') as HTMLButtonElement;
+const wotsForgeOutput = document.getElementById('wots-forge-output')!;
 
 let wotsKeyPair: WotsKeyPair | null = null;
 let wotsLastSig: WotsSignatureResult | null = null;
 let wotsSignCount = 0;
+
+// Re-render a chain showing the current signature step (amber) plus every step
+// ever revealed on it (orange) — activates the previously-dead revealedIndices hook.
+function rerenderWotsChain(chainIdx: number, sig?: WotsSignatureResult) {
+  if (!wotsKeyPair) return;
+  const div = document.getElementById(`wots-chain-${chainIdx}`)!;
+  renderWotsChain(div, wotsKeyPair.chains[chainIdx], sig, wotsKeyPair.chains[chainIdx].revealedSteps);
+}
 
 btnGenWots.addEventListener('click', async () => {
   wotsKeyPair = await generateWotsKeyPair(4);
@@ -307,6 +325,8 @@ btnGenWots.addEventListener('click', async () => {
   wotsLastSig = null;
   wotsReuseWarning.classList.add('hidden');
   wotsOutput.classList.add('hidden');
+  wotsForgeControls.style.display = 'none';
+  wotsForgeOutput.classList.add('hidden');
 
   wotsChainContainer.innerHTML = '';
   for (let i = 0; i < wotsKeyPair.chains.length; i++) {
@@ -329,11 +349,25 @@ btnWotsSign.addEventListener('click', () => {
   if (!wotsKeyPair) return;
   const nibble = parseInt(wotsNibble.value);
   const chainIdx = parseInt(wotsChainIdx.value);
+  // Guard out-of-range / empty inputs (the HTML max attribute does not block
+  // typed or empty values, which would otherwise crash with an undefined chain).
+  if (!Number.isInteger(nibble) || nibble < 0 || nibble > 15 ||
+      !Number.isInteger(chainIdx) || chainIdx < 0 || chainIdx >= wotsKeyPair.chains.length) {
+    wotsOutput.innerHTML = `<span class="badge badge-invalid">INVALID</span> Enter nibble 0–15 and chain 0–${wotsKeyPair.chains.length - 1}.`;
+    wotsOutput.classList.remove('hidden');
+    return;
+  }
+  const chain = wotsKeyPair.chains[chainIdx];
 
-  // Check reuse
-  const msgStr = `nibble-${nibble}-chain-${chainIdx}`;
-  const reuse = checkReuseWarning(wotsKeyPair, msgStr);
+  wotsLastSig = wotsSign(wotsKeyPair, nibble, chainIdx);
 
+  // Accumulate the revealed step on THIS chain (persists across signatures).
+  chain.revealedSteps.add(wotsLastSig.revealedStep);
+  wotsKeyPair.signedMessages.push(`nibble-${nibble}-chain-${chainIdx}`);
+  wotsSignCount++;
+
+  // Honest, per-chain reuse detection (driven by actual revealed steps).
+  const reuse = checkReuseWarning(wotsKeyPair);
   if (reuse.isReuse) {
     wotsReuseWarning.textContent = reuse.warning;
     wotsReuseWarning.classList.remove('hidden');
@@ -341,22 +375,65 @@ btnWotsSign.addEventListener('click', () => {
     wotsReuseWarning.classList.add('hidden');
   }
 
-  wotsKeyPair.signedMessages.push(msgStr);
-  wotsSignCount++;
+  // Re-render with the current step (amber) + all accumulated reveals (orange).
+  rerenderWotsChain(chainIdx, wotsLastSig);
 
-  wotsLastSig = wotsSign(wotsKeyPair, nibble, chainIdx);
-
-  // Re-render the relevant chain with highlight
-  const div = document.getElementById(`wots-chain-${chainIdx}`)!;
-  renderWotsChain(div, wotsKeyPair.chains[chainIdx], wotsLastSig);
-
+  const revealedList = [...chain.revealedSteps].sort((a, b) => a - b).join(', ');
   wotsOutput.innerHTML =
     `<strong>Signed:</strong> nibble=${nibble}, chain=${chainIdx}\n` +
-    `<strong>Revealed step:</strong> ${wotsLastSig.revealedStep} of ${wotsKeyPair.chains[chainIdx].chainLength}\n` +
+    `<strong>Revealed step:</strong> ${wotsLastSig.revealedStep} of ${chain.chainLength}\n` +
     `<strong>Steps to public key:</strong> ${wotsLastSig.stepsToPublicKey}\n` +
-    `<strong>Revealed value:</strong> ${bytesToHex(wotsLastSig.revealedValue).substring(0, 32)}…`;
+    `<strong>Revealed value:</strong> ${bytesToHex(wotsLastSig.revealedValue).substring(0, 32)}…\n` +
+    `<strong>All steps revealed on chain ${chainIdx}:</strong> [${revealedList}]` +
+    (chain.revealedSteps.size >= 2
+      ? `  ← lowest = ${Math.min(...chain.revealedSteps)}; every step above it is now forgeable.`
+      : '');
   wotsOutput.classList.remove('hidden');
   btnWotsVerify.disabled = false;
+
+  // Enable forgery once any point is revealed; default the forge target sensibly.
+  wotsForgeControls.style.display = 'flex';
+  wotsForgeChain.value = String(chainIdx);
+});
+
+btnWotsForge.addEventListener('click', async () => {
+  if (!wotsKeyPair) return;
+  const chainIdx = parseInt(wotsForgeChain.value);
+  const targetStep = parseInt(wotsForgeStep.value);
+  const chain = wotsKeyPair.chains[chainIdx];
+  if (!chain) {
+    wotsForgeOutput.innerHTML = `<span class="badge badge-invalid">INVALID</span> Chain index must be 0–${wotsKeyPair.chains.length - 1}.`;
+    wotsForgeOutput.classList.remove('hidden');
+    return;
+  }
+
+  const result = await wotsForge(chain, chainIdx, targetStep);
+  if ('error' in result) {
+    wotsForgeOutput.innerHTML = `<span class="badge badge-invalid">CANNOT FORGE</span> ${result.error}`;
+    wotsForgeOutput.classList.remove('hidden');
+    return;
+  }
+
+  // Verify the forged signature against the genuine public key.
+  const valid = await wotsVerify(chain.publicKey, {
+    chainIndex: chainIdx,
+    revealedStep: result.targetStep,
+    revealedValue: result.forgedValue,
+    stepsToPublicKey: result.stepsToPublicKey,
+  });
+
+  wotsForgeOutput.innerHTML =
+    `<strong>Forgery on chain ${chainIdx}, target step ${result.targetStep}</strong>\n` +
+    `Attacker started from the LOWEST revealed step (${result.basisStep}) and hashed forward ` +
+    `${result.targetStep - result.basisStep}× — never touching the private seed.\n` +
+    `<strong>Forged value:</strong> ${bytesToHex(result.forgedValue).substring(0, 32)}…\n` +
+    `<strong>Equals honest signer's value at step ${result.targetStep}:</strong> ` +
+    (result.matchesReal ? '<span class="badge badge-valid">YES</span>' : '<span class="badge badge-invalid">no</span>') + '\n' +
+    `<strong>Verifies against public key:</strong> ` +
+    (valid
+      ? `<span class="badge badge-invalid">VALID FORGERY</span> — this is the catastrophic WOTS+ reuse failure.`
+      : `<span class="badge badge-valid">rejected</span>`);
+  wotsForgeOutput.classList.remove('hidden');
 });
 
 btnWotsVerify.addEventListener('click', async () => {
@@ -368,6 +445,144 @@ btnWotsVerify.addEventListener('click', async () => {
     (valid
       ? `<span class="badge badge-valid">VALID</span> — hashed forward ${wotsLastSig.stepsToPublicKey} times from revealed value and reached the public key.`
       : `<span class="badge badge-invalid">FAILED</span>`);
+});
+
+// ─── TAB: FORS ───
+const forsParam = document.getElementById('fors-param') as HTMLSelectElement;
+const forsMessage = document.getElementById('fors-message') as HTMLInputElement;
+const btnForsBuild = document.getElementById('btn-fors-build') as HTMLButtonElement;
+const forsParamsCard = document.getElementById('fors-params')!;
+const forsOutput = document.getElementById('fors-output')!;
+
+function renderForsParamsCard() {
+  const p = getStructuralParams(forsParam.value as SphincsParamSet);
+  forsParamsCard.innerHTML = `
+    <span class="label">FORS trees (k)</span><span class="value">${p.k}</span>
+    <span class="label">Tree height (a)</span><span class="value">${p.a}</span>
+    <span class="label">Leaves per tree (t=2^a)</span><span class="value">${p.t.toLocaleString()}</span>
+    <span class="label">Digest bytes (⌈k·a/8⌉)</span><span class="value">${p.forsMdBytes} (${p.forsMdBits} bits)</span>
+    <span class="label">Hash family</span><span class="value">SHA-2 only</span>
+    <span class="label">Source</span><span class="value">noble PARAMS (real)</span>
+  `;
+}
+forsParam.addEventListener('change', renderForsParamsCard);
+renderForsParamsCard();
+
+btnForsBuild.addEventListener('click', async () => {
+  const set = forsParam.value as SphincsParamSet;
+  const p = getStructuralParams(set);
+  btnForsBuild.disabled = true;
+  try {
+    const msg = new TextEncoder().encode(forsMessage.value);
+    // Deterministic randomizer + sk seed for reproducibility in the demo.
+    const R = new TextEncoder().encode('fors-demo-R');
+    const skSeed = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('fors-demo-sk:' + set));
+    const digest = await computeForsIndices(msg, R, p.k, p.a);
+    const result = await buildFors(digest, new Uint8Array(skSeed), p.a);
+    renderFors(forsOutput, result, { k: p.k, a: p.a, t: p.t, forsMdBytes: p.forsMdBytes, set });
+  } finally {
+    btnForsBuild.disabled = false;
+  }
+});
+
+// ─── TAB: Hypertree ───
+const hypertreeParam = document.getElementById('hypertree-param') as HTMLSelectElement;
+const btnHypertreeBuild = document.getElementById('btn-hypertree-build') as HTMLButtonElement;
+const hypertreeParamsCard = document.getElementById('hypertree-params')!;
+const hypertreeContainer = document.getElementById('hypertree-container')!;
+const hypertreeSizeStory = document.getElementById('hypertree-sizestory')!;
+
+function renderHypertreeAll() {
+  const set = hypertreeParam.value as SphincsParamSet;
+  const p = getStructuralParams(set);
+  hypertreeParamsCard.innerHTML = `
+    <span class="label">Hypertree layers (d)</span><span class="value">${p.d}</span>
+    <span class="label">Total height (h)</span><span class="value">${p.h}</span>
+    <span class="label">Per-layer XMSS height (h′=h/d)</span><span class="value">${p.hPrime}</span>
+    <span class="label">WOTS+ leaves per layer (2^h′)</span><span class="value">${p.leavesPerLayer.toLocaleString()}</span>
+    <span class="label">Total bottom leaves (2^h)</span><span class="value">2^${p.h}</span>
+    <span class="label">Source</span><span class="value">noble PARAMS (real)</span>
+  `;
+  renderHypertree(hypertreeContainer, p, set);
+  const sz = PARAM_SIZES[set];
+  hypertreeSizeStory.innerHTML =
+    `<strong>Why the signature is ${sz.signature.toLocaleString()} bytes:</strong>\n` +
+    `signature  =  FORS sig  +  d × (WOTS+ sig + XMSS auth path)\n` +
+    `           =  FORS(k=${p.k}, a=${p.a})  +  ${p.d} layers × (WOTS+ + ${p.hPrime}-node auth path)\n\n` +
+    `Each of the ${p.d} layers contributes one WOTS+ signature plus an h′=${p.hPrime} authentication ` +
+    `path. More layers (f variants, d=${p.d}) → larger, faster signatures; fewer layers (s variants) → ` +
+    `smaller, slower. These are the real ${sz.signature.toLocaleString()}-byte sizes you can reproduce in Tab 1.`;
+}
+hypertreeParam.addEventListener('change', renderHypertreeAll);
+btnHypertreeBuild.addEventListener('click', renderHypertreeAll);
+renderHypertreeAll();
+
+// ─── TAB: Collision Tolerance ───
+const collisionParam = document.getElementById('collision-param') as HTMLSelectElement;
+const collisionMsgA = document.getElementById('collision-msg-a') as HTMLInputElement;
+const collisionMsgB = document.getElementById('collision-msg-b') as HTMLInputElement;
+const btnCollisionCompare = document.getElementById('btn-collision-compare') as HTMLButtonElement;
+const collisionOutput = document.getElementById('collision-output')!;
+const collisionN = document.getElementById('collision-n') as HTMLInputElement;
+const btnCollisionMargin = document.getElementById('btn-collision-margin') as HTMLButtonElement;
+const collisionMargin = document.getElementById('collision-margin')!;
+
+btnCollisionCompare.addEventListener('click', async () => {
+  const set = collisionParam.value as SphincsParamSet;
+  const p = getStructuralParams(set);
+  btnCollisionCompare.disabled = true;
+  try {
+    // Same key → deterministic digest (empty R) so the comparison is purely
+    // message-driven. Real SLH-DSA randomizes R per signature, which further
+    // frustrates collision-targeting; labeled below.
+    const R = new Uint8Array(0);
+    const a = await computeForsIndices(new TextEncoder().encode(collisionMsgA.value), R, p.k, p.a);
+    const b = await computeForsIndices(new TextEncoder().encode(collisionMsgB.value), R, p.k, p.a);
+
+    let collisions = 0;
+    let rows = '';
+    for (let i = 0; i < p.k; i++) {
+      const same = a.indices[i] === b.indices[i];
+      if (same) collisions++;
+      rows += `<tr${same ? ' style="background:rgba(245,158,11,0.12)"' : ''}>` +
+        `<td>T${i}</td><td>${a.indices[i]}</td><td>${b.indices[i]}</td>` +
+        `<td>${same ? '<span class="badge badge-invalid">SAME LEAF</span>' : '<span class="badge badge-valid">different</span>'}</td></tr>`;
+    }
+
+    collisionOutput.innerHTML =
+      `<div class="output" style="white-space:normal">` +
+      `<strong>${set}</strong> — k=${p.k} trees, t=${p.t.toLocaleString()} leaves each. ` +
+      `<strong>${collisions}</strong> of ${p.k} trees selected the SAME leaf for both messages.\n\n` +
+      `On a colliding tree, both signatures reveal the <em>same</em> FORS secret → <strong>no new ` +
+      `information leaks</strong>. On a differing tree, a second distinct secret is revealed. Danger ` +
+      `accumulates only across MANY signatures (an attacker grafting enough revealed leaves to cover ` +
+      `all k trees of a target) — never from a single collision.\n\n` +
+      `<strong>Contrast with WOTS+ (Tab 3):</strong> WOTS+ reuse → immediate forgery of higher chain ` +
+      `values on use #2 (catastrophic). FORS reuse → graceful degradation. That graceful degradation ` +
+      `IS few-time security, and it is why SLH-DSA can be stateless.\n\n` +
+      `<span class="muted">Note: deterministic digest (empty randomizer) used here so identical messages ` +
+      `map identically; real SLH-DSA randomizes R per signature.</span>` +
+      `</div>` +
+      `<div class="table-wrap"><table><thead><tr><th>Tree</th><th>Msg A leaf</th><th>Msg B leaf</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  } finally {
+    btnCollisionCompare.disabled = false;
+  }
+});
+
+btnCollisionMargin.addEventListener('click', () => {
+  const p = getStructuralParams(collisionParam.value as SphincsParamSet);
+  const n = Math.max(1, parseInt(collisionN.value) || 1);
+  const prob = illustrativeForgeryProbability(n, p.t, p.k);
+  const log2 = prob > 0 ? Math.log2(prob) : -Infinity;
+  collisionMargin.innerHTML =
+    `<strong>Illustrative</strong> (not a proof) — after N=${n.toLocaleString()} signatures with ONE key:\n` +
+    `params: k=${p.k}, t=${p.t.toLocaleString()}\n` +
+    `P(fresh message already forgeable) ≈ [1 − (1 − 1/t)^N]^k\n` +
+    `≈ ${prob.toExponential(3)}` +
+    (isFinite(log2) ? `  (≈ 2^${log2.toFixed(1)})` : '') + '\n\n' +
+    `<span class="muted">Real SPHINCS+ bounds are tighter and account for randomized H_msg. The point: ` +
+    `the margin erodes slowly and predictably as N grows — graceful, not a cliff.</span>`;
+  collisionMargin.classList.remove('hidden');
 });
 
 // ─── TAB 4: Ledger ───

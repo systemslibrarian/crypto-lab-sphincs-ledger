@@ -28,6 +28,9 @@
         <button class="tab active" data-tab="sign" role="tab" id="tab-btn-sign" aria-selected="true" aria-controls="tab-sign">Sign &amp; Verify</button>
         <button class="tab" data-tab="tree" role="tab" id="tab-btn-tree" aria-selected="false" aria-controls="tab-tree">Hash Tree</button>
         <button class="tab" data-tab="wots" role="tab" id="tab-btn-wots" aria-selected="false" aria-controls="tab-wots">WOTS+ Chains</button>
+        <button class="tab" data-tab="fors" role="tab" id="tab-btn-fors" aria-selected="false" aria-controls="tab-fors">FORS</button>
+        <button class="tab" data-tab="hypertree" role="tab" id="tab-btn-hypertree" aria-selected="false" aria-controls="tab-hypertree">Hypertree</button>
+        <button class="tab" data-tab="collision" role="tab" id="tab-btn-collision" aria-selected="false" aria-controls="tab-collision">Collision Tolerance</button>
         <button class="tab" data-tab="ledger" role="tab" id="tab-btn-ledger" aria-selected="false" aria-controls="tab-ledger">Ledger</button>
         <button class="tab" data-tab="security" role="tab" id="tab-btn-security" aria-selected="false" aria-controls="tab-security">Security Basis</button>
         <button class="tab" data-tab="compare" role="tab" id="tab-btn-compare" aria-selected="false" aria-controls="tab-compare">vs RSA / Dilithium</button>
@@ -117,6 +120,111 @@
             </fieldset>
             <div id="wots-reuse-warning" class="warning hidden" role="alert" aria-live="assertive"></div>
             <div id="wots-output" class="output hidden" role="status" aria-live="polite" aria-label="WOTS+ operation result"></div>
+
+            <h3>Catastrophic Reuse → Forgery</h3>
+            <p class="muted">Reveal at least one point (sign above), then forge a signature for a higher step
+            <strong>without the private seed</strong> — by hashing the lowest revealed value forward. The forged
+            value equals what the honest signer would have revealed, so it verifies against the public key.</p>
+            <fieldset class="controls-row" id="wots-forge-controls" style="display:none">
+              <legend class="sr-only">WOTS+ forgery controls</legend>
+              <label for="wots-forge-chain">Chain index:</label>
+              <input id="wots-forge-chain" type="number" min="0" max="3" value="0" aria-label="Chain index to forge on" />
+              <label for="wots-forge-step">Forge step (0-16):</label>
+              <input id="wots-forge-step" type="number" min="0" max="16" value="12" aria-label="Target step to forge" />
+              <button id="btn-wots-forge" class="btn-danger" aria-label="Forge a WOTS+ signature for the target step">Forge &amp; Verify</button>
+            </fieldset>
+            <div id="wots-forge-output" class="output hidden" role="alert" aria-live="assertive" aria-label="WOTS+ forgery result"></div>
+          </div>
+        </section>
+
+        <!-- Tab: FORS -->
+        <section id="tab-fors" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-btn-fors">
+          <div class="card">
+            <h2>FORS — Forest Of Random Subsets (FIPS 205 §8)</h2>
+            <p class="muted"><strong>Parallel pedagogical reconstruction.</strong> The parameter values
+            (k, a, t) are read from the real <code>@noble/post-quantum</code> <code>PARAMS</code> table — the
+            same library that signs in Tab 1. The trees, digest split, and FORS public key are an independent
+            educational model: noble exposes no FORS internals via its API. The <code>base_2b</code> digest→index
+            slicing is implemented exactly per FIPS 205 Algorithm 4.</p>
+            <div class="controls-row">
+              <label for="fors-param">Parameter set:</label>
+              <select id="fors-param" aria-label="FORS parameter set">
+                <option value="sha2-128f">SHA2-128f</option>
+                <option value="sha2-128s" selected>SHA2-128s</option>
+                <option value="sha2-256f">SHA2-256f</option>
+                <option value="sha2-256s">SHA2-256s</option>
+              </select>
+              <label for="fors-message">Message:</label>
+              <input id="fors-message" type="text" value="Hello, post-quantum world!" aria-label="Message to FORS-sign" style="flex:2" />
+              <button id="btn-fors-build" class="btn-primary" aria-label="Compute FORS indices and build the forest">Compute FORS</button>
+            </div>
+            <div id="fors-params" class="info-card" role="status" aria-label="FORS parameters"></div>
+            <div id="fors-output" aria-label="FORS visualization"></div>
+          </div>
+        </section>
+
+        <!-- Tab: Hypertree -->
+        <section id="tab-hypertree" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-btn-hypertree">
+          <div class="card">
+            <h2>Hypertree — d Layers of XMSS</h2>
+            <p class="muted"><strong>Illustrative structure</strong> using the real d, h, h′ from
+            <code>@noble/post-quantum</code> <code>PARAMS</code>. Each XMSS tree is drawn as a schematic triangle
+            (its 2^h′ leaves are too many to draw literally). The highlighted path climbs from a bottom-layer
+            FORS public key to the top root = the SLH-DSA public key.</p>
+            <div class="controls-row">
+              <label for="hypertree-param">Parameter set:</label>
+              <select id="hypertree-param" aria-label="Hypertree parameter set">
+                <option value="sha2-128f">SHA2-128f</option>
+                <option value="sha2-128s" selected>SHA2-128s</option>
+                <option value="sha2-256f">SHA2-256f</option>
+                <option value="sha2-256s">SHA2-256s</option>
+              </select>
+              <button id="btn-hypertree-build" class="btn-primary" aria-label="Render the hypertree">Render Hypertree</button>
+            </div>
+            <div id="hypertree-params" class="info-card" role="status" aria-label="Hypertree parameters"></div>
+            <div id="hypertree-container" role="img" aria-label="Hypertree visualization"></div>
+            <div id="hypertree-sizestory" class="output" role="status" aria-label="Signature size breakdown"></div>
+          </div>
+        </section>
+
+        <!-- Tab: Collision Tolerance -->
+        <section id="tab-collision" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-btn-collision">
+          <div class="card">
+            <h2>Collision Tolerance — Why FORS Degrades Gracefully</h2>
+            <p class="muted">Sign two different messages with the <strong>same key</strong> and compare their
+            k FORS index vectors. Trees that select the <strong>same</strong> leaf reveal the same secret (no new
+            leak). The contrast with WOTS+ (Tab 3) is the whole point: WOTS+ reuse is catastrophic on use #2;
+            FORS reuse degrades gracefully — that graceful degradation IS few-time security, and it is why
+            SLH-DSA can be <em>stateless</em>.</p>
+            <div class="controls-row">
+              <label for="collision-param">Parameter set:</label>
+              <select id="collision-param" aria-label="Collision parameter set">
+                <option value="sha2-128f">SHA2-128f</option>
+                <option value="sha2-128s" selected>SHA2-128s</option>
+                <option value="sha2-256f">SHA2-256f</option>
+                <option value="sha2-256s">SHA2-256s</option>
+              </select>
+            </div>
+            <div class="controls-row">
+              <label for="collision-msg-a">Message A:</label>
+              <input id="collision-msg-a" type="text" value="Transfer 10 tokens to Bob" aria-label="First message" style="flex:2" />
+            </div>
+            <div class="controls-row">
+              <label for="collision-msg-b">Message B:</label>
+              <input id="collision-msg-b" type="text" value="Transfer 99 tokens to Eve" aria-label="Second message" style="flex:2" />
+              <button id="btn-collision-compare" class="btn-primary" aria-label="Compare FORS index vectors">Compare</button>
+            </div>
+            <div id="collision-output" aria-label="Collision comparison result"></div>
+            <h3>Illustrative security margin</h3>
+            <p class="muted">A rough, <strong>illustrative</strong> estimate (NOT a proof) of the chance a fresh
+            target message is already forgeable after N honest signatures with the same key, assuming each
+            signature reveals one uniformly-random leaf per tree.</p>
+            <div class="controls-row">
+              <label for="collision-n">Signatures N:</label>
+              <input id="collision-n" type="number" min="1" max="100000000" value="1000" aria-label="Number of signatures" />
+              <button id="btn-collision-margin" class="btn-secondary" aria-label="Estimate forgery probability">Estimate</button>
+            </div>
+            <div id="collision-margin" class="output hidden" role="status" aria-live="polite" aria-label="Security margin estimate"></div>
           </div>
         </section>
 
