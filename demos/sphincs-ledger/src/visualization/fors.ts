@@ -25,6 +25,9 @@ function renderTreeGlyph(tree: ForsResult['trees'][number], t: number): SVGSVGEl
   svg.setAttribute('width', String(width));
   svg.setAttribute('height', String(height));
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  // Decorative: the selected leaf index is conveyed textually by the chips and
+  // the per-tree label, so hide the glyph from assistive tech to avoid noise.
+  svg.setAttribute('aria-hidden', 'true');
 
   // node positions per level, bottom (leaves) at y = levels*22 + 6
   const yOf = (lvl: number) => 6 + (levels - lvl) * 22;
@@ -171,6 +174,10 @@ export function renderFors(
   grid.style.gap = '10px';
   grid.style.margin = '10px 0';
   grid.style.justifyContent = 'center';
+  grid.setAttribute('role', 'img');
+  grid.setAttribute('aria-label',
+    `${params.k} FORS trees, each ${params.t.toLocaleString()} leaves; the selected leaf per tree is ` +
+    `highlighted. Selected leaf indices are listed above as text.`);
   result.trees.forEach((tree) => grid.appendChild(renderTreeGlyph(tree, params.t)));
   container.appendChild(grid);
 

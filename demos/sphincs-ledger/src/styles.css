@@ -179,7 +179,9 @@ header h1 {
 
 .tab:hover { color: var(--text); }
 .tab.active {
-  color: var(--primary);
+  /* --primary (#6366f1) on the dark bg is only 4.26:1 — below WCAG AA.
+     --primary-hover clears 4.5:1 in both themes; border keeps the brand accent. */
+  color: var(--primary-hover);
   border-bottom-color: var(--primary);
 }
 
@@ -245,11 +247,13 @@ button:disabled {
 }
 
 .btn-primary {
-  background: var(--primary);
+  /* White on --primary (#6366f1) is only ~4.47:1 — just below WCAG AA. A darker
+     indigo gives white text ≥6:1 in both themes. */
+  background: #4f46e5;
   color: white;
   margin: 12px 0;
 }
-.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-primary:hover:not(:disabled) { background: #4338ca; }
 
 .btn-secondary {
   background: var(--surface2);
@@ -539,9 +543,20 @@ h3 { margin: 16px 0 8px; font-size: 1rem; }
 
 /* ─── SVG visualizations: scroll on small screens ─── */
 #tree-container,
-#wots-chains {
+#wots-chains,
+#hypertree-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Hypertree scales down to fit narrow viewports (viewBox preserved) so it never
+   forces the whole page to scroll sideways. FORS tree glyphs already wrap. */
+#hypertree-container svg {
+  max-width: 100%;
+  height: auto;
+}
+#fors-output svg {
+  max-width: 100%;
 }
 
 /* ─── Touch target minimum 44px (WCAG 2.5.5) ─── */

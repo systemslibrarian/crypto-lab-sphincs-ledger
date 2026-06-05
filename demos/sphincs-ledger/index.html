@@ -92,7 +92,7 @@
               </select>
               <button id="btn-build-tree" class="btn-primary" aria-label="Build a new Merkle tree">Build Tree</button>
             </div>
-            <div id="tree-container" role="img" aria-label="Merkle tree visualization"></div>
+            <div id="tree-container" role="img" tabindex="0" aria-label="Merkle tree visualization (scrollable)"></div>
             <div class="controls-row">
               <label for="leaf-select">Select leaf to verify:</label>
               <select id="leaf-select" aria-label="Select a leaf node to verify"></select>
@@ -108,7 +108,7 @@
             <h2>WOTS+ One-Time Signature Chains</h2>
             <p class="muted"><strong>Illustrative demonstration</strong> — shows the hash-chain concept underlying WOTS+ (FIPS 205, Section 4). Not a production implementation.</p>
             <button id="btn-gen-wots" class="btn-primary" aria-label="Generate a new WOTS+ key with 4 hash chains">Generate WOTS+ Key (4 chains, w=16)</button>
-            <div id="wots-chains" role="img" aria-label="WOTS+ hash chain visualization"></div>
+            <div id="wots-chains" role="img" tabindex="0" aria-label="WOTS+ hash chain visualization (scrollable)"></div>
             <fieldset class="controls-row" id="wots-sign-controls" style="display:none">
               <legend class="sr-only">WOTS+ signing controls</legend>
               <label for="wots-nibble">Message nibble (0-15):</label>
@@ -159,7 +159,7 @@
               <button id="btn-fors-build" class="btn-primary" aria-label="Compute FORS indices and build the forest">Compute FORS</button>
             </div>
             <div id="fors-params" class="info-card" role="status" aria-label="FORS parameters"></div>
-            <div id="fors-output" aria-label="FORS visualization"></div>
+            <div id="fors-output" role="status" aria-live="polite" aria-label="FORS visualization"></div>
           </div>
         </section>
 
@@ -182,7 +182,7 @@
               <button id="btn-hypertree-build" class="btn-primary" aria-label="Render the hypertree">Render Hypertree</button>
             </div>
             <div id="hypertree-params" class="info-card" role="status" aria-label="Hypertree parameters"></div>
-            <div id="hypertree-container" role="img" aria-label="Hypertree visualization"></div>
+            <div id="hypertree-container" role="img" tabindex="0" aria-label="Hypertree visualization (scrollable)"></div>
             <div id="hypertree-sizestory" class="output" role="status" aria-label="Signature size breakdown"></div>
           </div>
         </section>
@@ -214,7 +214,7 @@
               <input id="collision-msg-b" type="text" value="Transfer 99 tokens to Eve" aria-label="Second message" style="flex:2" />
               <button id="btn-collision-compare" class="btn-primary" aria-label="Compare FORS index vectors">Compare</button>
             </div>
-            <div id="collision-output" aria-label="Collision comparison result"></div>
+            <div id="collision-output" role="status" aria-live="polite" aria-label="Collision comparison result"></div>
             <h3>Illustrative security margin</h3>
             <p class="muted">A rough, <strong>illustrative</strong> estimate (NOT a proof) of the chance a fresh
             target message is already forgeable after N honest signatures with the same key, assuming each
@@ -282,7 +282,7 @@
       </main>
 
     </div>
-    <footer role="contentinfo" style="text-align:center; padding: 1.5rem; font-size: 0.85rem; opacity: 0.7; margin-top: 2rem;">
+    <footer role="contentinfo" style="text-align:center; padding: 1.5rem; font-size: 0.85rem; opacity: 0.9; margin-top: 2rem;">
       Whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31
     </footer>
     <script type="module" src="/src/main.ts"></script>
