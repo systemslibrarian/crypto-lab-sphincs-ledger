@@ -23,7 +23,6 @@ export function renderWotsChain(
   svg.setAttribute('viewBox', `0 0 ${totalWidth} 120`);
   svg.style.display = 'block';
   svg.style.margin = '8px auto';
-  svg.style.overflowX = 'auto';
 
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
 

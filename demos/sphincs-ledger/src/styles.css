@@ -550,14 +550,14 @@ h3 { margin: 16px 0 8px; font-size: 1rem; }
   -webkit-overflow-scrolling: touch;
 }
 
-/* Hypertree scales down to fit narrow viewports (viewBox preserved) so it never
-   forces the whole page to scroll sideways. FORS tree glyphs already wrap. */
-#hypertree-container svg {
-  max-width: 100%;
-  height: auto;
-}
+/* All visualization SVGs scale down to fit narrow viewports (viewBox preserved)
+   so they never force the whole page to scroll sideways. */
+#tree-container svg,
+#wots-chains svg,
+#hypertree-container svg,
 #fors-output svg {
   max-width: 100%;
+  height: auto;
 }
 
 /* ─── Touch target minimum 44px (WCAG 2.5.5) ─── */
