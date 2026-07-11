@@ -9,6 +9,9 @@
   --primary-hover: #818cf8;
   --success: #16a34a;
   --danger: #dc2626;
+  /* Inline danger TEXT sits on the card/page surface, so it needs a lighter red
+     than the --danger fill color: #dc2626 is only 3.53:1 on #1a1a2e. */
+  --danger-text: #f87171;
   --warning: #f59e0b;
   --amber: #f59e0b;
   --info: #3b82f6;
@@ -28,6 +31,8 @@
   --primary-hover: #3730a3;
   --success: #15803d;
   --danger: #b91c1c;
+  /* On the light surface (#ffffff) #b91c1c is 5.9:1 — already AA. */
+  --danger-text: #b91c1c;
   --warning: #b45309;
   --amber: #b45309;
   --info: #1d4ed8;
@@ -460,7 +465,10 @@ tr:hover td { background: rgba(99, 102, 241, 0.05); }
 }
 
 .security-section h3 {
-  color: var(--primary);
+  /* --primary (#6366f1) is only 3.81:1 on the card surface — below WCAG AA.
+     --primary-hover clears 4.5:1 in both themes (light-theme --primary-hover is
+     a dark indigo, so it stays legible on the light card too). */
+  color: var(--primary-hover);
   margin-bottom: 8px;
   font-size: 1rem;
 }
@@ -501,7 +509,10 @@ tr:hover td { background: rgba(99, 102, 241, 0.05); }
 .speed-bar-fill {
   height: 100%;
   border-radius: 4px;
-  background: var(--primary);
+  /* White text sits on this fill, so it needs the same darker indigo as
+     .btn-primary: white on --primary (#6366f1) is only ~3.7:1. #4f46e5 gives
+     white >=6:1. */
+  background: #4f46e5;
   display: flex;
   align-items: center;
   padding-left: 8px;
@@ -520,8 +531,12 @@ footer {
 }
 
 footer a {
-  color: var(--primary);
-  text-decoration: none;
+  /* Footer links sit inline in a text block ("Related demos:"), distinguished
+     from surrounding text by color alone — WCAG 1.4.1 requires a non-color cue,
+     so they carry a persistent underline. --primary-hover clears 4.5:1 on the
+     page background in both themes (--primary is only ~3.7:1 on dark). */
+  color: var(--primary-hover);
+  text-decoration: underline;
 }
 
 footer a:hover { text-decoration: underline; }
@@ -530,7 +545,7 @@ a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 .muted { color: var(--text-muted); font-size: 0.85rem; }
-.text-danger { color: var(--danger); }
+.text-danger { color: var(--danger-text); }
 .text-success { color: var(--success); }
 
 h2 { margin-bottom: 8px; font-size: 1.2rem; }
