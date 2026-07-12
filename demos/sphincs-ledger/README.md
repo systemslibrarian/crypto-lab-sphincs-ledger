@@ -39,6 +39,38 @@ npm run build
 
 Output goes to `dist/`. The demo runs fully offline — no external CDN dependencies at runtime.
 
+## Tests
+
+```bash
+npm test        # vitest — crypto unit tests (run once)
+npm run test:a11y   # Playwright + axe-core WCAG A/AA gate
+```
+
+`npm test` runs a [vitest](https://vitest.dev) suite over the crypto layer and is
+part of the CI build (it runs before `npm run build` in `.github/workflows/deploy.yml`,
+so a broken crypto path fails the deploy). It covers:
+
+- **Real SLH-DSA (`@noble/post-quantum`)** — keygen/sign/verify round-trip, exact
+  FIPS 205 key/signature sizes, single-bit signature tamper rejection, message
+  tamper rejection, and cross-key rejection, across **all four** SHA-2 parameter
+  sets (128f/128s/256f/256s) — not just the fast one.
+- **`base_2b` (FIPS 205 Algorithm 4)** — worked-example vectors, the real FORS
+  `(k, a)` widths, and the too-few-bytes guard (must throw, never zero-pad).
+- **MGF1-SHA-256** — exact output length across block boundaries, prefix-stability,
+  and the reference first block `SHA-256(seed ‖ 0x00000000)`.
+- **FORS model** (`computeForsIndices` / `buildFors`) — indices in range,
+  determinism, randomizer- and seed-sensitivity, and that the selected leaf feeds
+  the derived FORS public key.
+- **WOTS+ reuse forgery** — the genuine hash-forward forgery reconstructs the
+  honest signer's higher chain value and **verifies against the real public key**,
+  cannot go below the lowest reveal, and reuse detection fires only on a second
+  distinct reveal.
+- **Merkle auth paths** — every leaf verifies via its path (round-trip), and a
+  tampered leaf, wrong index, or tampered path is rejected.
+
+The a11y suite (`test:a11y`) runs against the production build and asserts zero
+WCAG 2.0/2.1 A + AA violations in both themes.
+
 ## SPHINCS+ Implementation
 
 - **Package:** [`@noble/post-quantum`](https://www.npmjs.com/package/@noble/post-quantum) v0.6.0 by Paul Miller

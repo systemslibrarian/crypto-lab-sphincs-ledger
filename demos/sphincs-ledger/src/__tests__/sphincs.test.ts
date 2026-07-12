@@ -1,80 +1,62 @@
-// SPHINCS+ / SLH-DSA test suite
-// Tests: keygen → sign → verify round-trip, single-byte tamper detection
-// Run via: npx tsx src/__tests__/sphincs.test.ts (or import in a test runner)
+// SPHINCS+ / SLH-DSA test suite (vitest)
+// Exercises the REAL @noble/post-quantum signer that this demo ships:
+//   keygen → sign → verify round-trip, exact key/signature sizes,
+//   and single-byte tamper detection on both the signature and the message.
+// All FOUR SHA-2 parameter sets are covered by default — this is the crypto gate
+// that runs on every `npm test` / CI build.
+//
+// One keypair + signature is generated per parameter set (256s signing is genuinely
+// slow), then shared across the assertions in that set.
 
+import { describe, it, expect, beforeAll } from 'vitest';
 import {
   generateKeyPair,
   sign,
   verify,
   PARAM_SIZES,
+  type SphincsKeyPair,
   type SphincsParamSet,
 } from '../crypto/sphincs.js';
 
 const PARAM_SETS: SphincsParamSet[] = ['sha2-128f', 'sha2-128s', 'sha2-256f', 'sha2-256s'];
+const MESSAGE = new TextEncoder().encode('test message');
 
-async function test(name: string, fn: () => Promise<void>) {
-  try {
-    await fn();
-    console.log(`  ✓ ${name}`);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error(`  ✗ ${name}: ${msg}`);
-    process.exitCode = 1;
-  }
-}
+describe.each(PARAM_SETS)('SLH-DSA %s', (params) => {
+  const sizes = PARAM_SIZES[params];
+  let kp: SphincsKeyPair;
+  let other: SphincsKeyPair;
+  let sig: Uint8Array;
 
-function assert(condition: boolean, message: string) {
-  if (!condition) throw new Error(message);
-}
+  beforeAll(async () => {
+    kp = await generateKeyPair(params);
+    other = await generateKeyPair(params);
+    sig = await sign(kp.privateKey, MESSAGE, params);
+  });
 
-async function runTests() {
-  // Test only sha2-128f by default for speed; pass --all for all param sets
-  const paramSets = process.argv.includes('--all') ? PARAM_SETS : (['sha2-128f'] as SphincsParamSet[]);
+  it('generates a keypair with the FIPS 205 key sizes', () => {
+    expect(kp.publicKey.length).toBe(sizes.publicKey);
+    expect(kp.privateKey.length).toBe(sizes.privateKey);
+    expect(kp.paramSet).toBe(params);
+  });
 
-  for (const params of paramSets) {
-    console.log(`\nParameter set: ${params}`);
-    const sizes = PARAM_SIZES[params];
+  it('sign → verify → true, with the FIPS 205 signature size', async () => {
+    expect(sig.length).toBe(sizes.signature);
+    expect(await verify(kp.publicKey, MESSAGE, sig, params)).toBe(true);
+  });
 
-    await test('generate keypair with correct sizes', async () => {
-      const kp = await generateKeyPair(params);
-      assert(kp.publicKey.length === sizes.publicKey,
-        `public key: expected ${sizes.publicKey}, got ${kp.publicKey.length}`);
-      assert(kp.privateKey.length === sizes.privateKey,
-        `private key: expected ${sizes.privateKey}, got ${kp.privateKey.length}`);
-      assert(kp.paramSet === params, 'paramSet mismatch');
-    });
+  it('flipping one bit of the signature makes verify reject', async () => {
+    const tampered = new Uint8Array(sig);
+    tampered[0] ^= 0x01;
+    expect(await verify(kp.publicKey, MESSAGE, tampered, params)).toBe(false);
+  });
 
-    await test('sign → verify → true', async () => {
-      const kp = await generateKeyPair(params);
-      const msg = new TextEncoder().encode('test message');
-      const sig = await sign(kp.privateKey, msg, params);
-      assert(sig.length === sizes.signature,
-        `signature: expected ${sizes.signature}, got ${sig.length}`);
-      const valid = await verify(kp.publicKey, msg, sig, params);
-      assert(valid === true, 'expected verify to return true');
-    });
+  it('changing one byte of the message makes verify reject', async () => {
+    const tamperedMsg = new TextEncoder().encode('Test message'); // capital T
+    expect(await verify(kp.publicKey, tamperedMsg, sig, params)).toBe(false);
+  });
 
-    await test('flip byte in signature → verify → false', async () => {
-      const kp = await generateKeyPair(params);
-      const msg = new TextEncoder().encode('test message');
-      const sig = await sign(kp.privateKey, msg, params);
-      const tampered = new Uint8Array(sig);
-      tampered[0] ^= 0x01;
-      const valid = await verify(kp.publicKey, msg, tampered, params);
-      assert(valid === false, 'expected verify to return false after signature tamper');
-    });
-
-    await test('flip byte in message → verify → false', async () => {
-      const kp = await generateKeyPair(params);
-      const msg = new TextEncoder().encode('test message');
-      const sig = await sign(kp.privateKey, msg, params);
-      const tamperedMsg = new TextEncoder().encode('Test message'); // capital T
-      const valid = await verify(kp.publicKey, tamperedMsg, sig, params);
-      assert(valid === false, 'expected verify to return false after message tamper');
-    });
-  }
-
-  console.log('\nAll tests passed.');
-}
-
-runTests();
+  it('a signature is bound to its own key (cross-key verify fails)', async () => {
+    expect(await verify(kp.publicKey, MESSAGE, sig, params)).toBe(true);
+    expect(await verify(other.publicKey, MESSAGE, sig, params)).toBe(false);
+  });
+});
