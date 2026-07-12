@@ -134,11 +134,17 @@
 <!-- END crypto-lab shared header -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <div id="app">
-      <header role="banner">
-        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode">🌙</button>
-        <h1>SLH-DSA (SPHINCS+)</h1>
-        <p class="subtitle">NIST FIPS 205 — Hash-Based Digital Signatures</p>
-        <p class="tagline">Security reduces entirely to SHA-256 collision resistance. No algebraic assumptions.</p>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode" hidden>🌙</button>
+      <header class="cl-hero" role="group">
+        <div class="cl-hero-main">
+          <h1 class="cl-hero-title">SLH-DSA / SPHINCS+</h1>
+          <p class="cl-hero-sub">Hash-based signatures · NIST FIPS 205</p>
+          <p class="cl-hero-desc">Generate a stateless post-quantum keypair, sign a message, and walk the SHA-256 Merkle trees, WOTS+ chains, FORS forests, and XMSS hypertree that build the signature.</p>
+        </div>
+        <aside class="cl-hero-why" aria-label="Why it matters">
+          <span class="cl-hero-why-label">WHY IT MATTERS</span>
+          <p class="cl-hero-why-text">A quantum computer breaks RSA and ECC, but SLH-DSA rests only on the collision resistance of a hash function — no algebraic assumptions. That conservative foundation makes it a long-horizon anchor for firmware and code signing.</p>
+        </aside>
       </header>
 
       <nav class="tabs" role="tablist" aria-label="Demo sections">
