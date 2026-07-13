@@ -7,6 +7,11 @@ import type { MerkleNode } from '../crypto/merkle';
 const NODE_RADIUS = 20;
 const LEVEL_HEIGHT = 80;
 const ANIM_DELAY = 150;
+const STEP_DELAY = 750;
+
+function prefersReducedMotion(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
 
 interface NodePosition {
   x: number;
@@ -73,6 +78,8 @@ export function renderMerkleTree(
       const bothHighlighted = highlightSet.has(pos.node.hash) && highlightSet.has(pos.node.left.hash);
       line.setAttribute('stroke', bothHighlighted ? '#f59e0b' : (isLight ? '#94a3b8' : '#444'));
       line.setAttribute('stroke-width', bothHighlighted ? '3' : '1.5');
+      line.dataset.edgeParent = pos.node.hash;
+      line.dataset.edgeChild = pos.node.left.hash;
       svg.appendChild(line);
     }
     if (pos.node.right) {
@@ -85,6 +92,8 @@ export function renderMerkleTree(
       const bothHighlighted = highlightSet.has(pos.node.hash) && highlightSet.has(pos.node.right.hash);
       line.setAttribute('stroke', bothHighlighted ? '#f59e0b' : (isLight ? '#94a3b8' : '#444'));
       line.setAttribute('stroke-width', bothHighlighted ? '3' : '1.5');
+      line.dataset.edgeParent = pos.node.hash;
+      line.dataset.edgeChild = pos.node.right.hash;
       svg.appendChild(line);
     }
   }
@@ -103,12 +112,15 @@ export function renderMerkleTree(
     circle.setAttribute('fill', isHighlighted ? '#f59e0b' : (pos.node.isLeaf ? '#3b82f6' : '#6366f1'));
     circle.setAttribute('stroke', isLight ? '#e2e8f0' : '#1e1e2e');
     circle.setAttribute('stroke-width', '2');
+    circle.dataset.nodeHash = pos.node.hash;
+    circle.dataset.baseFill = pos.node.isLeaf ? '#3b82f6' : '#6366f1';
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', String(pos.x));
     text.setAttribute('y', String(pos.y + 4));
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('fill', isHighlighted ? '#000' : '#fff');
+    text.dataset.nodeHashText = pos.node.hash;
     text.setAttribute('font-size', '9');
     text.setAttribute('font-family', 'monospace');
     text.textContent = pos.node.hash.substring(0, 8);
@@ -126,6 +138,7 @@ export function renderMerkleTree(
   container.appendChild(svg);
 }
 
+// Legacy full-redraw animation, kept for compatibility. Prefer walkAuthPath.
 export async function animateAuthPath(
   container: HTMLElement,
   root: MerkleNode,
@@ -133,10 +146,7 @@ export async function animateAuthPath(
   leafHash: string,
   intermediates: string[]
 ): Promise<void> {
-  // First render without highlighting
   renderMerkleTree(container, root);
-
-  // Then highlight nodes one by one
   const allHighlighted: string[] = [];
   for (let i = 0; i < intermediates.length; i++) {
     allHighlighted.push(intermediates[i]);
@@ -145,5 +155,89 @@ export async function animateAuthPath(
     }
     renderMerkleTree(container, root, allHighlighted, leafHash);
     await new Promise((resolve) => setTimeout(resolve, ANIM_DELAY));
+  }
+}
+
+// ─── Incremental, followable auth-path walk ───
+// Renders the full tree ONCE (static), then lights one edge/node at a time as it
+// climbs from the leaf to the root, narrating each combine step. `onStep` fires
+// per level with a plain-language caption and the running computed hash so the UI
+// can show "hash(node || sibling) = parent" synced to the highlight.
+
+function paintNode(svg: SVGElement, hash: string, on: boolean): void {
+  const circle = svg.querySelector<SVGCircleElement>(`circle[data-node-hash="${hash}"]`);
+  const text = svg.querySelector<SVGTextElement>(`text[data-node-hash-text="${hash}"]`);
+  if (circle) circle.setAttribute('fill', on ? '#f59e0b' : (circle.dataset.baseFill || '#6366f1'));
+  if (text) text.setAttribute('fill', on ? '#000' : '#fff');
+}
+
+function paintEdge(svg: SVGElement, parent: string, child: string): void {
+  const line = svg.querySelector<SVGLineElement>(
+    `line[data-edge-parent="${parent}"][data-edge-child="${child}"]`
+  );
+  if (line) {
+    line.setAttribute('stroke', '#f59e0b');
+    line.setAttribute('stroke-width', '3');
+  }
+}
+
+export interface WalkStep {
+  level: number;
+  currentHash: string;   // the node we are climbing FROM at this level
+  siblingHash: string;   // the sibling combined in
+  parentHash: string;    // resulting parent hash
+  siblingIsRight: boolean;
+  isRoot: boolean;
+  caption: string;
+}
+
+export async function walkAuthPath(
+  container: HTMLElement,
+  root: MerkleNode,
+  authPath: string[],
+  leafIndex: number,
+  intermediates: string[],
+  onStep: (step: WalkStep) => void
+): Promise<void> {
+  renderMerkleTree(container, root);
+  const svg = container.querySelector('svg');
+  if (!svg) return;
+
+  const delay = prefersReducedMotion() ? 0 : STEP_DELAY;
+  let idx = leafIndex;
+
+  // Light the starting leaf.
+  paintNode(svg as SVGElement, intermediates[0], true);
+  await new Promise((r) => setTimeout(r, delay / 2));
+
+  for (let i = 0; i < authPath.length; i++) {
+    const current = intermediates[i];
+    const sibling = authPath[i];
+    const parent = intermediates[i + 1];
+    const siblingIsRight = idx % 2 === 0;
+    const isRoot = i === authPath.length - 1;
+
+    // Light the sibling, then the connecting edges, then the parent.
+    paintNode(svg as SVGElement, sibling, true);
+    paintEdge(svg as SVGElement, parent, current);
+    paintEdge(svg as SVGElement, parent, sibling);
+    paintNode(svg as SVGElement, parent, true);
+
+    const order = siblingIsRight ? 'node ‖ sibling' : 'sibling ‖ node';
+    onStep({
+      level: i,
+      currentHash: current,
+      siblingHash: sibling,
+      parentHash: parent,
+      siblingIsRight,
+      isRoot,
+      caption:
+        `Level ${i}: SHA-256( ${order} ) = ${isRoot ? 'ROOT' : 'parent'}. ` +
+        `Combine ${current.substring(0, 8)}… with its sibling ${sibling.substring(0, 8)}… ` +
+        `→ ${parent.substring(0, 8)}…` + (isRoot ? '  This root must equal the tree root.' : ''),
+    });
+
+    idx = Math.floor(idx / 2);
+    await new Promise((r) => setTimeout(r, delay));
   }
 }

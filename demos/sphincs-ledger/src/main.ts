@@ -9,7 +9,7 @@ import {
 } from './crypto/sphincs';
 import { bytesToHex, sha256Hex } from './crypto/hash';
 import { buildMerkleTree, getAuthPath, verifyAuthPath } from './crypto/merkle';
-import { renderMerkleTree, animateAuthPath } from './visualization/tree';
+import { renderMerkleTree, walkAuthPath } from './visualization/tree';
 import {
   generateWotsKeyPair,
   wotsSign,
@@ -19,7 +19,7 @@ import {
   type WotsKeyPair,
   type WotsSignatureResult,
 } from './crypto/wots';
-import { renderWotsChain } from './visualization/wots-chain';
+import { renderWotsChain, animateForge } from './visualization/wots-chain';
 import { getStructuralParams } from './crypto/params';
 import { computeForsIndices, buildFors, illustrativeForgeryProbability } from './crypto/fors';
 import { renderFors } from './visualization/fors';
@@ -98,6 +98,24 @@ function activateTab(btn: HTMLButtonElement) {
 
 allTabs.forEach((btn) => btn.addEventListener('click', () => activateTab(btn)));
 
+// Jump to a tab by its data-tab name (used by the guided learn-path steps and the
+// "See the X tab" links inside the Peek-inside pipeline).
+function gotoTab(tabName: string) {
+  const btn = allTabs.find((t) => t.dataset.tab === tabName);
+  if (btn) {
+    activateTab(btn);
+    btn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+// Delegated so it also catches the Peek-inside links injected after page load.
+document.body.addEventListener('click', (e) => {
+  const target = (e.target as HTMLElement).closest<HTMLElement>('[data-goto]');
+  if (target) {
+    e.preventDefault();
+    gotoTab(target.dataset.goto!);
+  }
+});
+
 // Keyboard arrow navigation for tablist (WCAG)
 document.querySelector('.tabs')?.addEventListener('keydown', (e) => {
   const ev = e as KeyboardEvent;
@@ -137,10 +155,48 @@ const btnTamperSig = document.getElementById('btn-tamper-sig') as HTMLButtonElem
 const btnTamperMsg = document.getElementById('btn-tamper-msg') as HTMLButtonElement;
 const tamperOutput = document.getElementById('tamper-output')!;
 
+const peekCard = document.getElementById('peek-card')!;
+const btnPeek = document.getElementById('btn-peek') as HTMLButtonElement;
+const peekBody = document.getElementById('peek-body')!;
+const peekSchematic = document.getElementById('peek-schematic')!;
+const peekSteps = document.getElementById('peek-steps')!;
+
 let currentKeyPair: SphincsKeyPair | null = null;
 let currentSignature: Uint8Array | null = null;
 let currentMessage: Uint8Array | null = null;
 let currentParamSet: SphincsParamSet = 'sha2-128f';
+
+// Bridge the opaque hex blob to the mechanism tabs: render the same amber-path
+// hypertree schematic and a plain-language pipeline the signature actually walks.
+function renderPeek() {
+  const p = getStructuralParams(currentParamSet);
+  renderHypertree(peekSchematic, p, currentParamSet);
+  peekSteps.innerHTML =
+    peekStep(1, `Your message (plus a random value) is hashed. Part of that hash picks <strong>${p.k} FORS leaves</strong> — one per FORS tree.`, 'fors') +
+    peekStep(2, `Those leaves form a <strong>FORS public key</strong> (the amber box at the bottom). FORS is a <em>few-time</em> signature, so reuse degrades gracefully.`, 'fors') +
+    peekStep(3, `A single <strong>WOTS+ leaf</strong> in the bottom XMSS tree signs that FORS public key. WOTS+ is <em>one-time</em> — the hypertree guarantees each is used once.`, 'wots') +
+    peekStep(4, `The path then <strong>climbs ${p.d} XMSS layers</strong>: each tree's root is signed by a leaf of the tree above, following the amber line.`, 'hypertree') +
+    peekStep(5, `The <strong>top root is your public key</strong>. The whole climb — FORS sig + ${p.d} × (WOTS+ sig + auth path) — is the ${PARAM_SIZES[currentParamSet].signature.toLocaleString()}-byte signature.`, 'hypertree');
+}
+
+function peekStep(n: number, text: string, tab: string): string {
+  return `<div class="peek-step" role="listitem"><span class="peek-step-num" aria-hidden="true">${n}</span>` +
+    `<span>${text} <a href="#" data-goto="${tab}">See the ${tab === 'fors' ? 'FORS' : tab === 'wots' ? 'WOTS+' : 'Hypertree'} tab →</a></span></div>`;
+}
+
+btnPeek.addEventListener('click', () => {
+  const open = peekBody.hasAttribute('hidden');
+  if (open) {
+    renderPeek();
+    peekBody.removeAttribute('hidden');
+    btnPeek.setAttribute('aria-expanded', 'true');
+    btnPeek.textContent = 'Hide the mechanism';
+  } else {
+    peekBody.setAttribute('hidden', '');
+    btnPeek.setAttribute('aria-expanded', 'false');
+    btnPeek.textContent = 'Show the mechanism';
+  }
+});
 
 function updateParamInfo() {
   currentParamSet = paramSelect.value as SphincsParamSet;
@@ -192,6 +248,10 @@ btnGenerate.addEventListener('click', async () => {
     btnTamperMsg.disabled = false;
     verifyOutput.classList.add('hidden');
     tamperOutput.classList.add('hidden');
+
+    // Reveal the mechanism bridge; refresh it if the learner already opened it.
+    peekCard.removeAttribute('hidden');
+    if (!peekBody.hasAttribute('hidden')) renderPeek();
   } catch (e: unknown) {
     const msg2 = e instanceof Error ? e.message : String(e);
     signOutput.innerHTML = `<span class="text-danger">Error: ${msg2}</span>`;
@@ -242,6 +302,7 @@ const leafSelect = document.getElementById('leaf-select') as HTMLSelectElement;
 const btnVerifyLeaf = document.getElementById('btn-verify-leaf') as HTMLButtonElement;
 const treeContainer = document.getElementById('tree-container')!;
 const treeVerifyOutput = document.getElementById('tree-verify-output')!;
+const treeCaption = document.getElementById('tree-caption')!;
 
 let treeLeaves: Uint8Array[] = [];
 let treeRoot: Awaited<ReturnType<typeof buildMerkleTree>> | null = null;
@@ -274,7 +335,21 @@ btnVerifyLeaf.addEventListener('click', async () => {
   const leafHash = await sha256Hex(treeLeaves[leafIdx]);
   const { valid, intermediates } = await verifyAuthPath(leafHash, leafIdx, authPath, treeRoot.hash);
 
-  await animateAuthPath(treeContainer, treeRoot, authPath, leafHash, intermediates);
+  // Followable, narrated single-path walk: static tree, one edge lit per level,
+  // with the running computed hash shown next to the highlight.
+  btnVerifyLeaf.disabled = true;
+  treeCaption.hidden = false;
+  treeCaption.innerHTML =
+    `<strong>Climbing from leaf ${leafIdx}.</strong> Each level combines the current node with its ` +
+    `authentication-path sibling to compute the parent — repeat until we reach the root.`;
+  await walkAuthPath(treeContainer, treeRoot, authPath, leafIdx, intermediates, (step) => {
+    treeCaption.innerHTML =
+      `<strong>${step.isRoot ? 'Final level' : 'Level ' + step.level}:</strong> ` +
+      `SHA-256( ${step.siblingIsRight ? 'node ‖ sibling' : 'sibling ‖ node'} ) → ` +
+      `<span class="caption-hash">${step.parentHash.substring(0, 24)}…</span>` +
+      (step.isRoot ? '  — this is the computed root.' : '');
+  });
+  btnVerifyLeaf.disabled = false;
 
   let html = `<strong>Leaf ${leafIdx} verification: </strong>`;
   html += valid
@@ -306,6 +381,7 @@ const wotsForgeChain = document.getElementById('wots-forge-chain') as HTMLInputE
 const wotsForgeStep = document.getElementById('wots-forge-step') as HTMLInputElement;
 const btnWotsForge = document.getElementById('btn-wots-forge') as HTMLButtonElement;
 const wotsForgeOutput = document.getElementById('wots-forge-output')!;
+const wotsForgeCaption = document.getElementById('wots-forge-caption')!;
 
 let wotsKeyPair: WotsKeyPair | null = null;
 let wotsLastSig: WotsSignatureResult | null = null;
@@ -409,9 +485,36 @@ btnWotsForge.addEventListener('click', async () => {
 
   const result = await wotsForge(chain, chainIdx, targetStep);
   if ('error' in result) {
+    wotsForgeCaption.hidden = true;
     wotsForgeOutput.innerHTML = `<span class="badge badge-invalid">CANNOT FORGE</span> ${result.error}`;
     wotsForgeOutput.classList.remove('hidden');
     return;
+  }
+
+  // Re-render this chain fresh (private=red, revealed=orange) then animate the
+  // attacker hashing forward from the lowest revealed box to the target step.
+  const chainDiv = document.getElementById(`wots-chain-${chainIdx}`);
+  if (chainDiv) {
+    renderWotsChain(chainDiv, chain, undefined, chain.revealedSteps);
+    btnWotsForge.disabled = true;
+    wotsForgeCaption.hidden = false;
+    wotsForgeCaption.innerHTML =
+      `<strong>Attacker starts at the lowest revealed box (step ${result.basisStep}).</strong> ` +
+      `It never touches the red Private box — it only hashes forward.`;
+    await animateForge(chainDiv, result.basisStep, result.targetStep, (from, to, isFinal) => {
+      if (from === to) {
+        wotsForgeCaption.innerHTML =
+          `<strong>Grabbing the revealed value at step ${from}.</strong> ` +
+          `The red Private box (step 0) stays untouched.`;
+      } else {
+        wotsForgeCaption.innerHTML =
+          `SHA-256 forward: step ${from} → step ${to}` +
+          (isFinal
+            ? `. <strong>The forged value snaps into place at step ${to}</strong> — identical to the honest signer's box, so it verifies.`
+            : ` (${to - result.basisStep}× from the start).`);
+      }
+    });
+    btnWotsForge.disabled = false;
   }
 
   // Verify the forged signature against the genuine public key.
@@ -526,6 +629,63 @@ const collisionOutput = document.getElementById('collision-output')!;
 const collisionN = document.getElementById('collision-n') as HTMLInputElement;
 const btnCollisionMargin = document.getElementById('btn-collision-margin') as HTMLButtonElement;
 const collisionMargin = document.getElementById('collision-margin')!;
+const collisionCoverage = document.getElementById('collision-coverage')!;
+
+// Draw k FORS-tree cells that fill as N grows. A tree is "covered" for a fresh
+// target once at least one of that tree's needed leaves has already been revealed;
+// expected coverage per tree = 1-(1-1/t)^N. The fill creeping toward all-k is the
+// erosion of the few-time margin — watched, not just read.
+function renderCoverage(n: number, t: number, k: number) {
+  const light = document.documentElement.getAttribute('data-theme') === 'light';
+  const perTree = 1 - Math.pow(1 - 1 / t, n);
+  const expectedCovered = perTree * k;
+  const cols = Math.min(k, 16);
+  const cell = 20, gap = 4, rows = Math.ceil(k / cols);
+  const w = cols * (cell + gap) + 8;
+  const h = rows * (cell + gap) + 40;
+  const svgns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgns, 'svg');
+  svg.setAttribute('width', String(w));
+  svg.setAttribute('height', String(h));
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label',
+    `Of ${k} FORS trees, about ${expectedCovered.toFixed(1)} are expected to be already covered after ${n.toLocaleString()} signatures.`);
+  // Fill the first `expectedCovered` cells solid amber; the fractional cell partial.
+  for (let i = 0; i < k; i++) {
+    const r = Math.floor(i / cols), c = i % cols;
+    const x = 4 + c * (cell + gap), y = 4 + r * (cell + gap);
+    const bg = document.createElementNS(svgns, 'rect');
+    bg.setAttribute('x', String(x)); bg.setAttribute('y', String(y));
+    bg.setAttribute('width', String(cell)); bg.setAttribute('height', String(cell));
+    bg.setAttribute('rx', '3');
+    bg.setAttribute('fill', light ? '#e2e8f0' : '#222238');
+    bg.setAttribute('stroke', '#f59e0b');
+    bg.setAttribute('stroke-width', '1');
+    svg.appendChild(bg);
+    const frac = Math.max(0, Math.min(1, expectedCovered - i));
+    if (frac > 0) {
+      const fill = document.createElementNS(svgns, 'rect');
+      fill.setAttribute('x', String(x));
+      fill.setAttribute('y', String(y + cell * (1 - frac)));
+      fill.setAttribute('width', String(cell));
+      fill.setAttribute('height', String(cell * frac));
+      fill.setAttribute('rx', '3');
+      fill.setAttribute('fill', '#f59e0b');
+      svg.appendChild(fill);
+    }
+  }
+  const label = document.createElementNS(svgns, 'text');
+  label.setAttribute('x', '4'); label.setAttribute('y', String(h - 10));
+  label.setAttribute('font-size', '11');
+  label.setAttribute('font-family', 'monospace');
+  label.setAttribute('fill', light ? '#475569' : '#94a3b8');
+  label.textContent = `~${expectedCovered.toFixed(1)} of ${k} trees covered (all k = forgeable)`;
+  svg.appendChild(label);
+  collisionCoverage.innerHTML = '';
+  collisionCoverage.appendChild(svg);
+  collisionCoverage.hidden = false;
+}
 
 btnCollisionCompare.addEventListener('click', async () => {
   const set = collisionParam.value as SphincsParamSet;
@@ -574,6 +734,7 @@ btnCollisionMargin.addEventListener('click', () => {
   const n = Math.max(1, parseInt(collisionN.value) || 1);
   const prob = illustrativeForgeryProbability(n, p.t, p.k);
   const log2 = prob > 0 ? Math.log2(prob) : -Infinity;
+  renderCoverage(n, p.t, p.k);
   collisionMargin.innerHTML =
     `<strong>Illustrative</strong> (not a proof) — after N=${n.toLocaleString()} signatures with ONE key:\n` +
     `params: k=${p.k}, t=${p.t.toLocaleString()}\n` +

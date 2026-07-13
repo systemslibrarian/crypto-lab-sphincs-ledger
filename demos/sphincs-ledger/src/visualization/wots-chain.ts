@@ -51,6 +51,8 @@ export function renderWotsChain(
     rect.setAttribute('fill', fill);
     rect.setAttribute('stroke', isLight ? '#94a3b8' : '#555');
     rect.setAttribute('stroke-width', '1');
+    rect.dataset.step = String(i);
+    rect.dataset.baseFill = fill;
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', String(x + BOX_WIDTH / 2));
@@ -129,4 +131,51 @@ export function renderWotsChain(
   svg.insertBefore(defs, svg.firstChild);
 
   container.appendChild(svg);
+}
+
+// ─── Animated forgery walk ───
+// Steps a "forge" highlight forward one box at a time, from the lowest revealed
+// (orange) box up to the target step, mimicking the attacker's forward-hashing.
+// The private box (step 0, red) is never touched. `onStep` narrates each hop.
+
+function prefersReducedMotion(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+const FORGE_STEP_MS = 650;
+const FORGE_HL = '#facc15'; // bright forge-highlight yellow
+
+export async function animateForge(
+  container: HTMLElement,
+  basisStep: number,
+  targetStep: number,
+  onStep: (from: number, to: number, isFinal: boolean) => void
+): Promise<void> {
+  const svg = container.querySelector('svg');
+  if (!svg) return;
+  const delay = prefersReducedMotion() ? 0 : FORGE_STEP_MS;
+
+  const rectAt = (s: number) =>
+    svg.querySelector<SVGRectElement>(`rect[data-step="${s}"]`);
+
+  // Pulse the basis box first (the lowest revealed value the attacker starts from).
+  const basis = rectAt(basisStep);
+  if (basis) {
+    basis.setAttribute('stroke', FORGE_HL);
+    basis.setAttribute('stroke-width', '3');
+  }
+  onStep(basisStep, basisStep, false);
+  await new Promise((r) => setTimeout(r, delay));
+
+  // Hash forward box-by-box: from -> to = one SHA-256 application.
+  for (let s = basisStep; s < targetStep; s++) {
+    const to = rectAt(s + 1);
+    if (to) {
+      to.setAttribute('fill', FORGE_HL);
+      to.setAttribute('stroke', FORGE_HL);
+      to.setAttribute('stroke-width', '3');
+    }
+    onStep(s, s + 1, s + 1 === targetStep);
+    await new Promise((r) => setTimeout(r, delay));
+  }
 }

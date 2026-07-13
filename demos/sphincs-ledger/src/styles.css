@@ -666,6 +666,179 @@ fieldset {
   h2 { font-size: 1rem; }
 }
 
+/* ─── Guided learning path ─── */
+.learn-path {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--primary) 6%, var(--surface));
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.learn-path-lead {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.learn-path-steps {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+}
+.learn-path-steps > li { display: flex; align-items: center; }
+.learn-arrow {
+  color: var(--text-muted);
+  font-size: 1rem;
+  padding: 0 2px;
+}
+.learn-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  color: var(--text);
+  text-align: left;
+  height: 100%;
+}
+.learn-step:hover { border-color: var(--primary); background: var(--border); }
+.learn-num {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.learn-label { display: flex; flex-direction: column; line-height: 1.15; font-size: 0.82rem; }
+.learn-sub { color: var(--text-muted); font-size: 0.72rem; }
+
+/* Reference tab group divider */
+.tab-group-label {
+  align-self: center;
+  margin: 0 2px 0 10px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ─── Glossary ─── */
+.glossary {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 16px;
+  padding: 4px 16px;
+}
+.glossary > summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.glossary > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.glossary-list {
+  margin: 8px 0 12px;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  font-size: 0.86rem;
+}
+.glossary-list dt { font-weight: 700; color: var(--primary-hover); font-family: var(--font-mono); }
+.glossary-list dd { margin: 0; color: var(--text); }
+@media (max-width: 560px) {
+  .glossary-list { grid-template-columns: 1fr; gap: 2px 0; }
+  .glossary-list dd { margin-bottom: 8px; }
+}
+
+/* Dotted-underline glossary term (used inline in tab prose) */
+.gloss {
+  border-bottom: 1px dotted var(--text-muted);
+  cursor: help;
+}
+
+/* ─── Visualization captions (Merkle walk, WOTS+ forge) ─── */
+.viz-caption {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin: 8px 0 4px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+.viz-caption[hidden] { display: none; }
+.viz-caption .caption-hash {
+  font-family: var(--font-mono);
+  color: var(--primary-hover);
+  word-break: break-all;
+}
+
+/* ─── Peek inside (Tab 1 mechanism bridge) ─── */
+.peek-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.peek-head h2 { margin: 0; }
+.peek-steps {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+.peek-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 0.85rem;
+}
+.peek-step .peek-step-num {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--amber);
+  color: #1a1200;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+[data-theme='light'] .peek-step .peek-step-num { color: #fff; }
+.peek-step a { color: var(--primary-hover); text-decoration: underline; }
+
+#peek-schematic { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#peek-schematic svg, #collision-coverage svg { max-width: 100%; height: auto; }
+#collision-coverage { overflow-x: auto; margin: 12px 0; }
+
 /* ─── High contrast mode ─── */
 @media (forced-colors: active) {
   .badge-valid { border: 1px solid currentColor; }

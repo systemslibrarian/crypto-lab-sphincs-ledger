@@ -11,5 +11,8 @@ export default defineConfig({
     // SLH-DSA-256s does real, slow hash-based signing; a single test performs
     // several keygen/sign/verify cycles. The default 5s timeout is not enough.
     testTimeout: 60_000,
+    // The 256s beforeAll hook runs two keygens plus a slow sign; under the full
+    // parallel run on a loaded machine that can exceed the default 10s hookTimeout.
+    hookTimeout: 60_000,
   },
 });

@@ -147,6 +147,42 @@
         </aside>
       </header>
 
+      <!-- Guided learning path — the load-bearing narrative through the tabs.
+           Each step links to the tab that teaches it, in the order a newcomer
+           should follow. The reference tabs (Ledger, Security, Compare) sit
+           outside this path as context, not part of the core story. -->
+      <nav class="learn-path" aria-label="Guided learning path">
+        <span class="learn-path-lead">Start here — follow the path:</span>
+        <ol class="learn-path-steps">
+          <li><button type="button" class="learn-step" data-goto="wots"><span class="learn-num">1</span><span class="learn-label">One key, one signature <span class="learn-sub">WOTS+</span></span></button></li>
+          <li aria-hidden="true" class="learn-arrow">→</li>
+          <li><button type="button" class="learn-step" data-goto="wots"><span class="learn-num">2</span><span class="learn-label">Reuse breaks it <span class="learn-sub">forge it yourself</span></span></button></li>
+          <li aria-hidden="true" class="learn-arrow">→</li>
+          <li><button type="button" class="learn-step" data-goto="collision"><span class="learn-num">3</span><span class="learn-label">FORS survives reuse <span class="learn-sub">few-time keys</span></span></button></li>
+          <li aria-hidden="true" class="learn-arrow">→</li>
+          <li><button type="button" class="learn-step" data-goto="hypertree"><span class="learn-num">4</span><span class="learn-label">Stack into a hypertree <span class="learn-sub">d XMSS layers</span></span></button></li>
+          <li aria-hidden="true" class="learn-arrow">→</li>
+          <li><button type="button" class="learn-step" data-goto="sign"><span class="learn-num">5</span><span class="learn-label">That's SLH-DSA <span class="learn-sub">sign for real</span></span></button></li>
+        </ol>
+      </nav>
+
+      <!-- Plain-language glossary for the load-bearing jargon. Always reachable
+           (not hover-only), collapsed by default so it doesn't add to the wall
+           of text. Terms in the tabs carry a dotted underline + native tooltip;
+           this card is the full, screen-reader-friendly definition list. -->
+      <details class="glossary">
+        <summary>Key terms in plain English (open before you start)</summary>
+        <dl class="glossary-list">
+          <dt>WOTS+</dt><dd>A <em>one-time</em> signature. One key signs exactly one message safely; sign a second time and an attacker can forge. You will break one yourself in step 2.</dd>
+          <dt>FORS</dt><dd>A <em>few-time</em> signature ("Forest Of Random Subsets"). Unlike WOTS+, it degrades gracefully when a key is reused — that is what lets SLH-DSA be stateless.</dd>
+          <dt>XMSS</dt><dd>A Merkle tree of many WOTS+ keys with one shared public root, so thousands of one-time keys hide behind a single short public key.</dd>
+          <dt>Hypertree</dt><dd>XMSS trees stacked in <em>d</em> layers — each tree's root is signed by a leaf of the tree above it. The very top root is the SLH-DSA public key.</dd>
+          <dt>Authentication path</dt><dd>The list of sibling hashes you combine, level by level, to climb from one leaf to the root and prove the leaf belongs to the tree.</dd>
+          <dt>Nibble</dt><dd>Half a byte — 4 bits, a value 0–15. WOTS+ signs the message hash one nibble at a time.</dd>
+          <dt>base_2b</dt><dd>The FIPS 205 routine that slices the message digest into the integer indices that pick which FORS leaf each tree reveals.</dd>
+        </dl>
+      </details>
+
       <nav class="tabs" role="tablist" aria-label="Demo sections">
         <button class="tab active" data-tab="sign" role="tab" id="tab-btn-sign" aria-selected="true" aria-controls="tab-sign">Sign &amp; Verify</button>
         <button class="tab" data-tab="tree" role="tab" id="tab-btn-tree" aria-selected="false" aria-controls="tab-tree">Hash Tree</button>
@@ -154,9 +190,10 @@
         <button class="tab" data-tab="fors" role="tab" id="tab-btn-fors" aria-selected="false" aria-controls="tab-fors">FORS</button>
         <button class="tab" data-tab="hypertree" role="tab" id="tab-btn-hypertree" aria-selected="false" aria-controls="tab-hypertree">Hypertree</button>
         <button class="tab" data-tab="collision" role="tab" id="tab-btn-collision" aria-selected="false" aria-controls="tab-collision">Collision Tolerance</button>
-        <button class="tab" data-tab="ledger" role="tab" id="tab-btn-ledger" aria-selected="false" aria-controls="tab-ledger">Ledger</button>
-        <button class="tab" data-tab="security" role="tab" id="tab-btn-security" aria-selected="false" aria-controls="tab-security">Security Basis</button>
-        <button class="tab" data-tab="compare" role="tab" id="tab-btn-compare" aria-selected="false" aria-controls="tab-compare">vs RSA / Dilithium</button>
+        <span class="tab-group-label" aria-hidden="true">Reference</span>
+        <button class="tab tab-ref" data-tab="ledger" role="tab" id="tab-btn-ledger" aria-selected="false" aria-controls="tab-ledger">Ledger</button>
+        <button class="tab tab-ref" data-tab="security" role="tab" id="tab-btn-security" aria-selected="false" aria-controls="tab-security">Security Basis</button>
+        <button class="tab tab-ref" data-tab="compare" role="tab" id="tab-btn-compare" aria-selected="false" aria-controls="tab-compare">vs RSA / Dilithium</button>
       </nav>
 
       <main id="main-content">
@@ -199,6 +236,22 @@
               <div id="tamper-output" class="output hidden" role="alert" aria-live="assertive" aria-label="Tamper test result"></div>
             </div>
           </div>
+
+          <!-- Peek inside: bridge the opaque hex blob to the mechanism tabs.
+               Hidden until a signature exists; then a schematic shows what
+               SLH-DSA just did — FORS pubkey -> bottom XMSS leaf -> climb d
+               layers to the root — using the same amber path as the Hypertree tab. -->
+          <div class="card" id="peek-card" hidden>
+            <div class="peek-head">
+              <h2>Peek inside: what SLH-DSA just did</h2>
+              <button id="btn-peek" class="btn-secondary" type="button" aria-expanded="false" aria-controls="peek-body">Show the mechanism</button>
+            </div>
+            <p class="muted">The signature above is an opaque hex blob. But it was built by a fixed pipeline. Here is the same structure the mechanism tabs teach, with the amber path a single signature actually walks.</p>
+            <div id="peek-body" hidden>
+              <div id="peek-schematic" role="img" tabindex="0" aria-label="Schematic of the SLH-DSA signing pipeline: the message picks FORS leaves, the FORS public key is signed by a bottom-layer XMSS WOTS+ leaf, and the path climbs d XMSS layers to the top root which is the public key (scrollable)"></div>
+              <div id="peek-steps" class="peek-steps" role="list" aria-label="Signing pipeline steps"></div>
+            </div>
+          </div>
         </section>
 
         <!-- Tab 2: Hash Tree -->
@@ -216,6 +269,7 @@
               <button id="btn-build-tree" class="btn-primary" aria-label="Build a new Merkle tree">Build Tree</button>
             </div>
             <div id="tree-container" role="img" tabindex="0" aria-label="Merkle tree visualization (scrollable)"></div>
+            <div id="tree-caption" class="viz-caption" role="status" aria-live="polite" hidden></div>
             <div class="controls-row">
               <label for="leaf-select">Select leaf to verify:</label>
               <select id="leaf-select" aria-label="Select a leaf node to verify"></select>
@@ -229,7 +283,7 @@
         <section id="tab-wots" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-btn-wots">
           <div class="card">
             <h2>WOTS+ One-Time Signature Chains</h2>
-            <p class="muted"><strong>Illustrative demonstration</strong> — shows the hash-chain concept underlying WOTS+ (FIPS 205, Section 4). Not a production implementation.</p>
+            <p class="muted"><strong>Illustrative demonstration</strong> — shows the hash-chain concept underlying <span class="gloss" title="WOTS+: a one-time signature. One key signs exactly one message safely; a second use lets an attacker forge.">WOTS+</span> (FIPS 205, Section 4). Signing reveals one point per chain, chosen by a message <span class="gloss" title="Nibble: half a byte — 4 bits, a value 0–15. WOTS+ signs the message hash one nibble at a time.">nibble</span>. Not a production implementation.</p>
             <button id="btn-gen-wots" class="btn-primary" aria-label="Generate a new WOTS+ key with 4 hash chains">Generate WOTS+ Key (4 chains, w=16)</button>
             <div id="wots-chains" role="img" tabindex="0" aria-label="WOTS+ hash chain visualization (scrollable)"></div>
             <fieldset class="controls-row" id="wots-sign-controls" style="display:none">
@@ -256,6 +310,7 @@
               <input id="wots-forge-step" type="number" min="0" max="16" value="12" aria-label="Target step to forge" />
               <button id="btn-wots-forge" class="btn-danger" aria-label="Forge a WOTS+ signature for the target step">Forge &amp; Verify</button>
             </fieldset>
+            <div id="wots-forge-caption" class="viz-caption" role="status" aria-live="polite" hidden></div>
             <div id="wots-forge-output" class="output hidden" role="alert" aria-live="assertive" aria-label="WOTS+ forgery result"></div>
           </div>
         </section>
@@ -264,10 +319,13 @@
         <section id="tab-fors" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-btn-fors">
           <div class="card">
             <h2>FORS — Forest Of Random Subsets (FIPS 205 §8)</h2>
+            <p class="muted"><strong>In one sentence:</strong> <span class="gloss" title="FORS: a few-time signature. Unlike WOTS+, it degrades gracefully when a key is reused — that is what lets SLH-DSA be stateless.">FORS</span>
+            hashes your message into <em>k</em> indices, and each index reveals one leaf from its own tree; because it
+            is <em>few-time</em>, reusing the key leaks slowly instead of catastrophically (contrast WOTS+ in step 2).</p>
             <p class="muted"><strong>Parallel pedagogical reconstruction.</strong> The parameter values
-            (k, a, t) are read from the real <code>@noble/post-quantum</code> <code>PARAMS</code> table — the
+            (k trees, a = tree height, t = 2^a leaves) are read from the real <code>@noble/post-quantum</code> <code>PARAMS</code> table — the
             same library that signs in Tab 1. The trees, digest split, and FORS public key are an independent
-            educational model: noble exposes no FORS internals via its API. The <code>base_2b</code> digest→index
+            educational model: noble exposes no FORS internals via its API. The <span class="gloss" title="base_2b: the FIPS 205 routine that slices the message digest into the integer indices that pick which FORS leaf each tree reveals.">base_2b</span> digest→index
             slicing is implemented exactly per FIPS 205 Algorithm 4.</p>
             <div class="controls-row">
               <label for="fors-param">Parameter set:</label>
@@ -347,6 +405,7 @@
               <input id="collision-n" type="number" min="1" max="100000000" value="1000" aria-label="Number of signatures" />
               <button id="btn-collision-margin" class="btn-secondary" aria-label="Estimate forgery probability">Estimate</button>
             </div>
+            <div id="collision-coverage" role="img" tabindex="0" aria-label="Expected FORS tree coverage after N signatures (scrollable)" hidden></div>
             <div id="collision-margin" class="output hidden" role="status" aria-live="polite" aria-label="Security margin estimate"></div>
           </div>
         </section>

@@ -57,6 +57,10 @@ async function driveDemos(page: Page): Promise<void> {
   await expect(page.locator('#verify-output')).toBeVisible({ timeout: 30_000 });
   await page.locator('#btn-tamper-sig').click();
   await expect(page.locator('#tamper-output')).toBeVisible({ timeout: 30_000 });
+  // Peek-inside mechanism bridge — expand its schematic + pipeline steps.
+  await page.locator('#btn-peek').click();
+  await expect(page.locator('#peek-schematic svg').first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#peek-steps .peek-step').first()).toBeVisible({ timeout: 30_000 });
 
   // Tab: Hash Tree — build tree, then verify a leaf (animates the auth path).
   await page.locator('#tab-btn-tree').click();
@@ -93,6 +97,7 @@ async function driveDemos(page: Page): Promise<void> {
   await expect(page.locator('#collision-output table')).toBeVisible({ timeout: 30_000 });
   await page.locator('#btn-collision-margin').click();
   await expect(page.locator('#collision-margin')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#collision-coverage svg')).toBeVisible({ timeout: 30_000 });
 
   // Tab: Ledger — add an entry, verify all, tamper.
   await page.locator('#tab-btn-ledger').click();
