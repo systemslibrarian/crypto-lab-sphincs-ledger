@@ -839,8 +839,11 @@ document.getElementById('security-content')!.innerHTML = `
     <h3>The Hash-Only Security Argument</h3>
     <div class="highlight-box">
       <strong>"If SHA-256 is secure, SPHINCS+ is secure."</strong><br>
-      SLH-DSA's security reduces entirely to the collision resistance, second-preimage resistance,
-      and PRF properties of its underlying hash function. There are no number-theoretic assumptions
+      SLH-DSA's security reduces entirely to standard properties of its underlying hash function:
+      PRF security, second-preimage / target-collision resistance, and interleaved target-subset
+      resilience. It deliberately does <strong>not</strong> require plain collision resistance —
+      that is why an <em>n</em> = 16-byte parameter set can still claim 128-bit security, where
+      collision resistance alone would cap it at 64 bits. There are no number-theoretic assumptions
       (factoring, discrete log, lattice problems) that could be independently broken.
     </div>
   </div>
