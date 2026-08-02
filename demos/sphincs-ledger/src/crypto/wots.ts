@@ -116,9 +116,9 @@ export function checkReuseWarning(
       `WOTS+ KEY REUSE DETECTED on chain(s) ${exposedChains.join(', ')}. ` +
       `Each signature reveals one point on a chain. Once two different steps are ` +
       `revealed on the same chain, an attacker who holds the LOWER revealed value ` +
-      `can hash it forward (SHA-256) to reconstruct every higher value on that chain — ` +
-      `forging a valid signature for any step above the lowest reveal. ` +
-      `Use the "Forge" control below to do exactly that against the public key. ` +
+      `can hash it forward (SHA-256) to reconstruct every higher value on that chain. ` +
+      `This demo omits the checksum chains, so that is chain exposure—not by itself ` +
+      `a complete WOTS+ signature forgery. Use the control below to derive a higher point. ` +
       `SPHINCS+ avoids this by using each WOTS+ key exactly once via its hypertree.`,
     exposedChains,
   };
@@ -133,28 +133,32 @@ export interface WotsForgeResult {
   matchesReal: boolean;       // forgedValue === the honest signer's chainValues[targetStep]
 }
 
-// Catastrophic-reuse forgery (PIECE 1).
+// One-chain exposure under reuse (PIECE 1).
 // Given a chain on which at least one step `basisStep` has been revealed, an
-// attacker forges the signature for any `targetStep >= basisStep` by hashing the
+// attacker derives the chain value for any `targetStep >= basisStep` by hashing the
 // lower revealed value forward (targetStep - basisStep) times. The result equals
 // the honest signer's chainValues[targetStep] EXACTLY, so it verifies against the
-// public key. This is the real failure that the old code only described in text.
+// public endpoint. This is genuine chain leakage, not a complete WOTS+ signature
+// forgery: this model deliberately omits the Winternitz checksum chains.
 export async function wotsForge(
   chain: WotsChain,
   chainIndex: number,
   targetStep: number
 ): Promise<WotsForgeResult | { error: string }> {
   if (chain.revealedSteps.size === 0) {
-    return { error: 'No chain points revealed yet — nothing to forge from.' };
+    return { error: 'No chain points revealed yet — nothing to derive from.' };
   }
-  if (!Number.isInteger(targetStep) || targetStep < 0 || targetStep > chain.chainLength) {
-    return { error: `Forge step must be an integer in [0, ${chain.chainLength}].` };
+  // A base-w digit ranges from 0 through w-1. chainLength itself is the public
+  // key endpoint, not a signable digit; accepting it creates a degenerate
+  // zero-hash "signature" equal to the public key.
+  if (!Number.isInteger(targetStep) || targetStep < 0 || targetStep >= chain.chainLength) {
+    return { error: `Target step must be an integer in [0, ${chain.chainLength - 1}].` };
   }
   const basisStep = Math.min(...chain.revealedSteps);
   if (targetStep < basisStep) {
     return {
       error:
-        `Cannot forge step ${targetStep}: it is BELOW the lowest revealed step ` +
+        `Cannot derive step ${targetStep}: it is BELOW the lowest revealed step ` +
         `(${basisStep}). Hash chains are one-way — an attacker can only go ` +
         `forward (up), never backward. This is exactly why revealing a LOW value ` +
         `is the dangerous one.`,

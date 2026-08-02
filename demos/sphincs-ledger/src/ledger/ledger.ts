@@ -82,13 +82,13 @@ export class Ledger {
     return { valid: validCount, invalid: invalidCount, entries: this.entries };
   }
 
-  tamperEntry(id: number, newMessage: string): void {
+  async tamperEntry(id: number, newMessage: string): Promise<boolean | null> {
     const entry = this.entries.find((e) => e.id === id);
-    if (entry) {
-      entry.message = newMessage;
-      entry.valid = false; // Mark as suspect until re-verified
-      this.saveToSession();
-    }
+    if (!entry) return null;
+    entry.message = newMessage;
+    entry.valid = await this.verifyEntry(entry);
+    this.saveToSession();
+    return entry.valid;
   }
 
   clearAll(): void {

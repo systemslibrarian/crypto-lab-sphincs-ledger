@@ -38,7 +38,7 @@ export function renderHypertree(
   svg.setAttribute('aria-label',
     `Hypertree for ${set}: ${params.d} stacked XMSS layers of height ${params.hPrime}, ` +
     `each root signed by a WOTS+ leaf in the layer above, climbing to the top root which is the public key. ` +
-    `A bottom-layer leaf signs the FORS public key.`);
+    `An illustrative amber path starts at a bottom-layer leaf; it is not parsed from a signature.`);
 
   const cx = width / 2;
   // layer index ell: d-1 (top) .. 0 (bottom). Row 0 drawn at top.

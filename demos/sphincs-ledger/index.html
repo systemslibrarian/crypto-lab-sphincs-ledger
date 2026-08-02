@@ -258,7 +258,7 @@
               <h2>Peek inside: what SLH-DSA just did</h2>
               <button id="btn-peek" class="btn-secondary" type="button" aria-expanded="false" aria-controls="peek-body">Show the mechanism</button>
             </div>
-            <p class="muted">The signature above is an opaque hex blob. But it was built by a fixed pipeline. Here is the same structure the mechanism tabs teach, with the amber path a single signature actually walks.</p>
+            <p class="muted">The signature above is an opaque hex blob. But it was built by a fixed pipeline. Here is the same structure the mechanism tabs teach; the amber route is an illustrative leaf-to-root path, not a path parsed from the opaque signature.</p>
             <div id="peek-body" hidden>
               <div id="peek-schematic" role="img" tabindex="0" aria-label="Schematic of the SLH-DSA signing pipeline: the message picks FORS leaves, the FORS public key is signed by a bottom-layer XMSS WOTS+ leaf, and the path climbs d XMSS layers to the top root which is the public key (scrollable)"></div>
               <div id="peek-steps" class="peek-steps" role="list" aria-label="Signing pipeline steps"></div>
@@ -310,20 +310,21 @@
             <div id="wots-reuse-warning" class="warning hidden" role="alert" aria-live="assertive"></div>
             <div id="wots-output" class="output hidden" role="status" aria-live="polite" aria-label="WOTS+ operation result"></div>
 
-            <h3>Catastrophic Reuse → Forgery</h3>
-            <p class="muted">Reveal at least one point (sign above), then forge a signature for a higher step
-            <strong>without the private seed</strong> — by hashing the lowest revealed value forward. The forged
-            value equals what the honest signer would have revealed, so it verifies against the public key.</p>
+            <h3>One-chain exposure under reuse</h3>
+            <p class="muted">Reveal at least one point (sign above), then derive a higher point
+            <strong>without the private seed</strong> by hashing the lowest revealed value forward. This proves
+            what leaks on one hash chain. It is <strong>not a complete WOTS+ signature forgery</strong>: this
+            teaching model omits the Winternitz checksum chains that couple the digits in real WOTS+.</p>
             <fieldset class="controls-row" id="wots-forge-controls" style="display:none">
-              <legend class="sr-only">WOTS+ forgery controls</legend>
+              <legend class="sr-only">WOTS+ one-chain exposure controls</legend>
               <label for="wots-forge-chain">Chain index:</label>
-              <input id="wots-forge-chain" type="number" min="0" max="3" value="0" aria-label="Chain index to forge on" />
-              <label for="wots-forge-step">Forge step (0-16):</label>
-              <input id="wots-forge-step" type="number" min="0" max="16" value="12" aria-label="Target step to forge" />
-              <button id="btn-wots-forge" class="btn-danger" aria-label="Forge a WOTS+ signature for the target step">Forge &amp; Verify</button>
+              <input id="wots-forge-chain" type="number" min="0" max="3" value="0" aria-label="Chain index to derive from" />
+              <label for="wots-forge-step">Target chain step (0-15):</label>
+              <input id="wots-forge-step" type="number" min="0" max="15" value="12" aria-label="Target chain step between 0 and 15" />
+              <button id="btn-wots-forge" class="btn-danger" aria-label="Derive and verify the target WOTS+ chain point">Derive Chain Point</button>
             </fieldset>
             <div id="wots-forge-caption" class="viz-caption" role="status" aria-live="polite" hidden></div>
-            <div id="wots-forge-output" class="output hidden" role="alert" aria-live="assertive" aria-label="WOTS+ forgery result"></div>
+            <div id="wots-forge-output" class="output hidden" role="alert" aria-live="assertive" aria-label="WOTS+ one-chain exposure result"></div>
           </div>
         </section>
 

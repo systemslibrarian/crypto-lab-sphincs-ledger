@@ -1,9 +1,8 @@
 // WOTS+ illustrative-chain test suite (vitest).
 //
-// This guards the honesty claim the README makes for the WOTS+ tab: that the
-// "Forge & Verify" control is a GENUINE hash-forward forgery — reconstructing a
-// higher chain value from the lowest revealed point (no private seed) that
-// verifies against the real public key — and that reuse detection is real.
+// This guards the honesty claim the README makes for the WOTS+ tab: the control
+// genuinely derives a higher chain value from the lowest revealed point without
+// the private seed, while staying scoped to one checksum-free teaching chain.
 
 import { describe, it, expect } from 'vitest';
 import {
@@ -64,8 +63,8 @@ describe('reuse detection', () => {
   });
 });
 
-describe('reuse forgery (the core honesty claim)', () => {
-  it('forges a higher chain value from the lowest reveal and it verifies', async () => {
+describe('one-chain exposure (the core honesty claim)', () => {
+  it('derives a higher chain value from the lowest reveal and reaches the endpoint', async () => {
     const kp = await generateWotsKeyPair(1);
     const chain = kp.chains[0];
     // Attacker legitimately observed step 2 (a LOW reveal).
@@ -80,7 +79,7 @@ describe('reuse forgery (the core honesty claim)', () => {
     expect(forge.matchesReal).toBe(true);
     expect(Array.from(forge.forgedValue)).toEqual(Array.from(chain.chainValues[targetStep]));
 
-    // … so a signature built from it verifies against the true public key.
+    // … so the derived point hashes to this chain's true public endpoint.
     const forgedSig = {
       chainIndex: 0,
       revealedStep: targetStep,
@@ -108,6 +107,7 @@ describe('reuse forgery (the core honesty claim)', () => {
     const kp = await generateWotsKeyPair(1);
     kp.chains[0].revealedSteps.add(1);
     expect('error' in (await wotsForge(kp.chains[0], 0, -1))).toBe(true);
+    expect('error' in (await wotsForge(kp.chains[0], 0, W))).toBe(true);
     expect('error' in (await wotsForge(kp.chains[0], 0, W + 1))).toBe(true);
   });
 });

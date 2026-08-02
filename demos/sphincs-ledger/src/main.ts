@@ -167,7 +167,8 @@ let currentMessage: Uint8Array | null = null;
 let currentParamSet: SphincsParamSet = 'sha2-128f';
 
 // Bridge the opaque hex blob to the mechanism tabs: render the same amber-path
-// hypertree schematic and a plain-language pipeline the signature actually walks.
+// hypertree schematic and a plain-language pipeline. Noble does not expose the
+// signature's internal indices, so its amber path is explicitly illustrative.
 function renderPeek() {
   const p = getStructuralParams(currentParamSet);
   renderHypertree(peekSchematic, p, currentParamSet);
@@ -462,12 +463,12 @@ btnWotsSign.addEventListener('click', () => {
     `<strong>Revealed value:</strong> ${bytesToHex(wotsLastSig.revealedValue).substring(0, 32)}…\n` +
     `<strong>All steps revealed on chain ${chainIdx}:</strong> [${revealedList}]` +
     (chain.revealedSteps.size >= 2
-      ? `  ← lowest = ${Math.min(...chain.revealedSteps)}; every step above it is now forgeable.`
+      ? `  ← lowest = ${Math.min(...chain.revealedSteps)}; every higher point on this chain can now be derived.`
       : '');
   wotsOutput.classList.remove('hidden');
   btnWotsVerify.disabled = false;
 
-  // Enable forgery once any point is revealed; default the forge target sensibly.
+  // Enable chain derivation once any point is revealed; choose a useful target.
   wotsForgeControls.style.display = 'flex';
   wotsForgeChain.value = String(chainIdx);
 });
@@ -510,14 +511,15 @@ btnWotsForge.addEventListener('click', async () => {
         wotsForgeCaption.innerHTML =
           `SHA-256 forward: step ${from} → step ${to}` +
           (isFinal
-            ? `. <strong>The forged value snaps into place at step ${to}</strong> — identical to the honest signer's box, so it verifies.`
+            ? `. <strong>The derived value snaps into place at step ${to}</strong> — identical to the honest signer's box and hashing to this chain's endpoint.`
             : ` (${to - result.basisStep}× from the start).`);
       }
     });
     btnWotsForge.disabled = false;
   }
 
-  // Verify the forged signature against the genuine public key.
+  // Verify this derived chain point against the genuine chain endpoint. This is
+  // not a complete WOTS+ signature: the teaching model has no checksum chains.
   const valid = await wotsVerify(chain.publicKey, {
     chainIndex: chainIdx,
     revealedStep: result.targetStep,
@@ -526,15 +528,15 @@ btnWotsForge.addEventListener('click', async () => {
   });
 
   wotsForgeOutput.innerHTML =
-    `<strong>Forgery on chain ${chainIdx}, target step ${result.targetStep}</strong>\n` +
+    `<strong>Derived chain point ${chainIdx}, target step ${result.targetStep}</strong>\n` +
     `Attacker started from the LOWEST revealed step (${result.basisStep}) and hashed forward ` +
     `${result.targetStep - result.basisStep}× — never touching the private seed.\n` +
-    `<strong>Forged value:</strong> ${bytesToHex(result.forgedValue).substring(0, 32)}…\n` +
+    `<strong>Derived value:</strong> ${bytesToHex(result.forgedValue).substring(0, 32)}…\n` +
     `<strong>Equals honest signer's value at step ${result.targetStep}:</strong> ` +
     (result.matchesReal ? '<span class="badge badge-valid">YES</span>' : '<span class="badge badge-invalid">no</span>') + '\n' +
-    `<strong>Verifies against public key:</strong> ` +
+    `<strong>Hashes to this chain's public endpoint:</strong> ` +
     (valid
-      ? `<span class="badge badge-invalid">VALID FORGERY</span> — this is the catastrophic WOTS+ reuse failure.`
+      ? `<span class="badge badge-invalid">CHAIN POINT EXPOSED</span> — genuine one-chain leakage; not a complete WOTS+ signature forgery because checksum chains are omitted.`
       : `<span class="badge badge-valid">rejected</span>`);
   wotsForgeOutput.classList.remove('hidden');
 });
@@ -717,8 +719,9 @@ btnCollisionCompare.addEventListener('click', async () => {
       `information leaks</strong>. On a differing tree, a second distinct secret is revealed. Danger ` +
       `accumulates only across MANY signatures (an attacker grafting enough revealed leaves to cover ` +
       `all k trees of a target) — never from a single collision.\n\n` +
-      `<strong>Contrast with WOTS+ (Tab 3):</strong> WOTS+ reuse → immediate forgery of higher chain ` +
-      `values on use #2 (catastrophic). FORS reuse → graceful degradation. That graceful degradation ` +
+      `<strong>Contrast with the one-chain model (Tab 3):</strong> reuse exposes higher values on a ` +
+      `previously revealed chain immediately. Complete WOTS+ also has checksum chains, which this ` +
+      `illustration omits. FORS reuse → graceful degradation. That graceful degradation ` +
       `IS few-time security, and it is why SLH-DSA can be stateless.\n\n` +
       `<span class="muted">Note: deterministic digest (empty randomizer) used here so identical messages ` +
       `map identically; real SLH-DSA randomizes R per signature.</span>` +
@@ -817,14 +820,17 @@ btnLedgerVerify.addEventListener('click', async () => {
   ledgerEntries.insertBefore(summary, ledgerEntries.firstChild);
 });
 
-btnLedgerTamper.addEventListener('click', () => {
+btnLedgerTamper.addEventListener('click', async () => {
   const latest = ledger.entries[ledger.entries.length - 1];
   if (!latest) return;
-  ledger.tamperEntry(latest.id, latest.message + ' [TAMPERED]');
-  ledgerTamperExpl.textContent =
-    'The message content changed after signing. SHA-256 of the new message does not match the digest that was signed. SPHINCS+ verification rejects it.';
+  btnLedgerTamper.disabled = true;
+  const valid = await ledger.tamperEntry(latest.id, latest.message + ' [TAMPERED]');
+  ledgerTamperExpl.textContent = valid === false
+    ? 'The message content changed after signing. The demo ran SPHINCS+ verify() on the changed bytes and stored signature; verification returned false.'
+    : 'Unexpected result: verification did not reject the changed entry.';
   ledgerTamperExpl.classList.remove('hidden');
   renderLedger();
+  btnLedgerTamper.disabled = false;
 });
 
 btnLedgerClear.addEventListener('click', () => {

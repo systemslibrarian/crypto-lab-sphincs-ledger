@@ -20,10 +20,10 @@ under "Honesty Notes / KNOWN-GAPS".
   (e.g. `base_2b([0x12,0x34,0x56], 12, 2) === [0x123, 0x456]`). The only
   deviation is an implementation detail: `total` is truncated to its unconsumed
   low bits each iteration to avoid BigInt — bit-for-bit equivalent to the spec.
-- **WOTS+ forgery** — the forged value is a genuine `SHA-256`-forward computation
-  from the lowest revealed point; it equals the honest signer's value exactly and
-  verifies against the real public key. The *forgery* is real; only the
-  *surrounding chain* is simplified (see below).
+- **WOTS+ chain exposure** — the derived value is a genuine `SHA-256`-forward
+  computation from the lowest revealed point; it equals the honest chain value
+  exactly and hashes to that chain's public endpoint. A complete-signature
+  forgery is not modeled because the Winternitz checksum chains are omitted.
 
 ---
 
@@ -71,9 +71,9 @@ under "Honesty Notes / KNOWN-GAPS".
 - **Why it matters:** In real WOTS+, a checksum prevents forging *higher* digits
   by construction (forging up on one chain forces forging down on a checksum
   chain). Our simplified model deliberately omits this so the core hash-chain
-  one-wayness — "reveal a low value → an attacker can forge any higher value" — is
-  shown directly and unobscured. This is the intended teaching point of the reuse
-  demo, and it is labeled as illustrative in the tab.
+  one-wayness — "reveal a low value → an attacker can derive any higher chain
+  value" — is shown directly. That derivation is not labeled as a complete WOTS+
+  signature forgery because the checksum chains are absent.
 - **Where:** `src/crypto/wots.ts`, `src/visualization/wots-chain.ts`.
 
 ### 6. Collision-tolerance security margin

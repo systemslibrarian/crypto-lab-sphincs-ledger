@@ -18,11 +18,11 @@ introduces the load-bearing jargon (WOTS+, FORS, XMSS, hypertree, authentication
 
 1. **Hash-only security** — SPHINCS+ security reduces entirely to standard properties of SHA-256 (PRF security, second-preimage / target-collision resistance, interleaved target-subset resilience). Notably it does *not* rest on plain collision resistance — a deliberate design choice, and the reason an `n = 16`-byte parameter set can claim 128-bit security. No algebraic assumptions (factoring, discrete log, lattice problems).
 2. **Merkle tree mechanics** — Real SHA-256 Merkle trees built and verified in the browser. Verifying a leaf now plays a **followable, narrated walk**: the tree stays static, one edge lights per level, and a synced caption shows `SHA-256(node ‖ sibling)` and the running computed hash climbing to the root — making "authentication path" self-explanatory.
-3. **WOTS+ one-time property — and its catastrophic failure on reuse** — Winternitz hash-chain demonstration that shows the *actual* reuse failure, not just a warning: revealed chain points accumulate across signatures, and a **Forge & Verify** control reconstructs a higher chain value by hashing the lowest revealed point forward (no private seed) and verifies the forgery against the real public key. The forgery is now **animated**: it pulses from the lowest revealed box and steps a hash forward box-by-box to the target, snapping the forged value into place, with a caption noting the attacker never touches the red Private box. Reuse detection is per-chain and honest.
+3. **WOTS+ one-time property — one-chain exposure under reuse** — This illustrative Winternitz hash-chain model accumulates revealed points and lets you derive a higher chain point by hashing the lowest reveal forward without the private seed. The animation proves genuine leakage on that chain, but it is explicitly not a complete WOTS+ signature forgery: the model omits the checksum chains that couple real WOTS+ digits. Reuse detection is per-chain and honest.
 4. **FORS (Forest Of Random Subsets), FIPS 205 §8** — The message digest is sliced into *k* fields of *a* bits via `base_2b` (implemented exactly per FIPS 205 Algorithm 4), each selecting one leaf per tree; *k* roots are hashed into the FORS public key. This is where the real `k`, `a`, `t` finally surface in the UI.
 5. **Hypertree** — The *d* layers of XMSS trees, each root signed by a WOTS+ leaf one layer up, climbing to the top root = public key. Annotates the size story (FORS sig + *d* × (WOTS+ sig + auth path)) that explains the 8 KB–50 KB signatures.
 6. **Collision tolerance** — Signs two messages with the same key, compares the two *k*-index vectors, and contrasts FORS's graceful degradation (few-time security → why SLH-DSA is stateless) against WOTS+'s catastrophic reuse. A **live coverage visual** fills *k* tree-cells toward all-*k* as you raise N, so the erosion of the few-time margin is watched approaching the cliff, not just read from the probability formula.
-7. **Sign & Verify — with a "Peek inside" bridge** — Generate a keypair and sign with the real `@noble/post-quantum` SLH-DSA. After signing, a **Peek inside** toggle expands a schematic of what SLH-DSA just did — FORS pubkey → bottom XMSS leaf → climb *d* layers to the root — drawn with the same amber path as the Hypertree tab and linked step-by-step to the mechanism tabs, so the opaque hex blob is no longer a black box.
+7. **Sign & Verify — with a "Peek inside" bridge** — Generate a keypair and sign with the real `@noble/post-quantum` SLH-DSA. After signing, a **Peek inside** toggle expands a schematic of the fixed pipeline — FORS pubkey → bottom XMSS leaf → climb *d* layers to the root. Noble does not expose the signature's internal indices, so the amber route is explicitly illustrative rather than parsed from that signature.
 8. **Ledger signing** — Append-only ledger of SPHINCS+ signed entries with tamper detection. Each entry generates a fresh keypair — no shared keys or PKI required.
 9. **Parameter set comparison** — All four SHA-2 parameter sets (128f, 128s, 256f, 256s) with measured signing times and size comparisons against RSA, Ed25519, and ML-DSA.
 
@@ -70,10 +70,11 @@ so a broken crypto path fails the deploy). It covers:
 - **FORS model** (`computeForsIndices` / `buildFors`) — indices in range,
   determinism, randomizer- and seed-sensitivity, and that the selected leaf feeds
   the derived FORS public key.
-- **WOTS+ reuse forgery** — the genuine hash-forward forgery reconstructs the
-  honest signer's higher chain value and **verifies against the real public key**,
-  cannot go below the lowest reveal, and reuse detection fires only on a second
-  distinct reveal.
+- **WOTS+ one-chain exposure** — hash-forward derivation reconstructs the honest
+  chain's higher value and reaches that chain's public endpoint, cannot go below
+  the lowest reveal, rejects the non-signable endpoint step, and reuse detection
+  fires only on a second distinct reveal. This is not a checksum-complete WOTS+
+  signature forgery.
 - **Merkle auth paths** — every leaf verifies via its path (round-trip), and a
   tampered leaf, wrong index, or tampered path is rejected.
 
@@ -120,7 +121,7 @@ the `s` sets use **fewer tall** ones:
 | Parameter values `k, a, t, d, h, h′` | **Real** — read live from noble's exported `PARAMS` (FIPS 205 Table 2) |
 | `base_2b` digest→index slicing (FORS) | **Spec-exact** — FIPS 205 Algorithm 4, unit-tested |
 | Merkle tree visualization | **Illustrative** — real SHA-256, simplified structure (up to 16 leaves) |
-| WOTS+ chain + reuse forgery | **Illustrative** — real SHA-256 chains; the forgery is a genuine hash-forward that verifies against the public key, but on a simplified single-chain (no Winternitz checksum) |
+| WOTS+ chain exposure | **Illustrative** — real SHA-256 chains; a genuine hash-forward derivation reaches one chain's public endpoint, but this is not a complete signature forgery because the Winternitz checksum chains are omitted |
 | FORS trees + public key | **Parallel reconstruction** — our own model (noble exposes no FORS internals); trees drawn/rooted at reduced height, digest modeled with SHA-256 + MGF1 |
 | Hypertree diagram | **Illustrative** — real `d`/`h`/`h′`; XMSS trees drawn as schematic triangles |
 | Collision security margin | **Illustrative estimate** — a rough bound, explicitly not a proof |
@@ -132,7 +133,7 @@ the `s` sets use **fewer tall** ones:
 - **FORS/Hypertree are a *parallel pedagogical reconstruction*, not an inspection of noble.** noble's public API exposes only `keygen`/`sign`/`verify`/`lengths` on the signer — never its internal FORS leaves, trees, or hypertree nodes. So those structures are an independent educational model in `src/crypto/fors.ts` and `src/visualization/`. Only the parameter *values* come from noble; the constructions do not.
 - **SHA-2 only. No SHAKE/SHA-3 anywhere.** Every hash in this demo is SHA-256 (Web Crypto). The four parameter sets are the SHA-2 variants only.
 - **No 192-bit tier.** Only 128- and 256-bit, each in `f` (fast) and `s` (small). This matches the four sets wired to noble in Tab 1.
-- **Display-scaled / reconstructed values** are enumerated in `NOTES-scaled-values.md`. In short: FORS trees are drawn and rooted at a reduced height (real `t` = 64–16,384 leaves is too many to draw or hash literally — the real index/`t` is always printed on the amber leaf); the FORS digest is modeled with SHA-256 + MGF1 rather than the full FIPS 205 transcript hash; XMSS trees in the hypertree are schematic triangles; and the WOTS+ chain omits the Winternitz checksum, so the forgery demo shows the "reveal a low value → forge higher values" failure directly.
+- **Display-scaled / reconstructed values** are enumerated in `NOTES-scaled-values.md`. In short: FORS trees are drawn and rooted at a reduced height (real `t` = 64–16,384 leaves is too many to draw or hash literally — the real index/`t` is always printed on the amber leaf); the FORS digest is modeled with SHA-256 + MGF1 rather than the full FIPS 205 transcript hash; XMSS trees in the hypertree are schematic triangles; and the checksum-free WOTS+ model demonstrates derivation of higher values on one exposed chain, not a complete WOTS+ signature forgery.
 - **The collision security-margin counter is illustrative**, computed as `[1 − (1 − 1/t)^N]^k`. Real SPHINCS+ bounds are tighter and account for randomized `H_msg` and grafting.
 
 ## Stack
