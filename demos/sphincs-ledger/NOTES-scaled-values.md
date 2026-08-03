@@ -75,6 +75,38 @@ under "Honesty Notes / KNOWN-GAPS".
   value" — is shown directly. That derivation is not labeled as a complete WOTS+
   signature forgery because the checksum chains are absent.
 - **Where:** `src/crypto/wots.ts`, `src/visualization/wots-chain.ts`.
+- **No longer the only WOTS+ model on the page:** the second panel in the same
+  tab (item 5b) is checksum-complete, so the tab now shows both the isolated
+  chain and the whole signature.
+
+### 5b. Complete WOTS+ runs at a reduced DIGEST WIDTH (not a reduced mechanism)
+- **What:** `src/crypto/wotsplus.ts` implements the whole one-time signature —
+  message chains *and* Winternitz checksum chains — but hashes the message to a
+  **24-bit digest**: `len1 = 6` base-16 digits, `len2 = 2` checksum digits,
+  **8 chains** total. FIPS 205's SHA2-128s uses a 256-bit digest (`len1 = 64`)
+  plus `len2 = 3`, for **67 chains**.
+- **Why:** The exhibit lets the learner *run the forgery search*. At 256 bits the
+  search space is fine but the honest-failure demonstration needs thousands of
+  candidate hashes per attempt, and the two-signature success needs the digit
+  vectors to overlap often enough to find a hit interactively. Narrowing the
+  digest is what makes both finish in a browser.
+- **What is NOT scaled:** `w = 16`, the chain construction, the checksum formula
+  `len2 = floor(log2(len1(w−1))/log2 w) + 1`, the signing rule
+  (`sig[i] = chain^{d_i}(sk_i)`), and the verification rule
+  (`chain^{w−1−d_i}(sig[i])` → endpoint → compressed public key) are all exactly
+  the FIPS 205 §5 rules. Every hash is real SHA-256 via Web Crypto.
+- **The honest consequence, reported rather than hidden:** a 24-bit digest is
+  collision-findable within the search budget, and a collision would let a forgery
+  through *without* beating the checksum. So `forgeAttempt` returns
+  `collidesWithObserved`, and the page attributes such a hit to the collision
+  explicitly instead of crediting the checksum break. At full width that route is
+  unavailable.
+- **Measured behaviour** (`src/__tests__/wotsplus-measure.test.ts`, 20 trials):
+  with **one** signature observed, 0/20 forgeries within 3,000 candidates; with
+  **two** signatures under the same key, 20/20 forgeries, median ~30 candidates.
+  That gap is the exhibit.
+- **Where:** `src/crypto/wotsplus.ts`, the "Forge it yourself" panel in the WOTS+
+  tab, scale stated in-page in `#wp-scale-note`.
 
 ### 6. Collision-tolerance security margin
 - **What:** `P(forgeable) ≈ [1 − (1 − 1/t)^N]^k`.

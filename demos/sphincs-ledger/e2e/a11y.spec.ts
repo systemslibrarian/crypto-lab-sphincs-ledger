@@ -81,6 +81,26 @@ async function driveDemos(page: Page): Promise<void> {
   await page.locator('#btn-wots-forge').click();
   await expect(page.locator('#wots-forge-output')).toBeVisible({ timeout: 30_000 });
 
+  // Same tab: complete WOTS+ with the checksum. Drive BOTH verdicts so axe sees
+  // the refusal styling and the succeeded-forgery styling, which use different
+  // badge colours. Sign once and fail, then reuse the key and succeed.
+  await page.locator('#btn-wp-gen').click();
+  await expect(page.locator('#wp-sign-controls')).toBeVisible({ timeout: 30_000 });
+  await page.locator('#wp-message').fill('invoice 001: pay 10 to Alice');
+  await page.locator('#btn-wp-sign').click();
+  await expect(page.locator('#wp-digits')).toBeVisible({ timeout: 30_000 });
+  await page.locator('#btn-wp-forge').click();
+  await expect(page.locator('#wp-forge-output')).toContainText('FORGERY FAILED', {
+    timeout: 60_000,
+  });
+  await page.locator('#wp-message').fill('invoice 002: pay 25 to Bob');
+  await page.locator('#btn-wp-sign').click();
+  await expect(page.locator('#wp-reuse-warning')).toBeVisible({ timeout: 30_000 });
+  await page.locator('#btn-wp-forge').click();
+  await expect(page.locator('#wp-forge-output')).toContainText('FORGERY SUCCEEDED', {
+    timeout: 60_000,
+  });
+
   // Tab: FORS — build the forest.
   await page.locator('#tab-btn-fors').click();
   await page.locator('#btn-fors-build').click();

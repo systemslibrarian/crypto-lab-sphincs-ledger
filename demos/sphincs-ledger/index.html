@@ -314,7 +314,8 @@
             <p class="muted">Reveal at least one point (sign above), then derive a higher point
             <strong>without the private seed</strong> by hashing the lowest revealed value forward. This proves
             what leaks on one hash chain. It is <strong>not a complete WOTS+ signature forgery</strong>: this
-            teaching model omits the Winternitz checksum chains that couple the digits in real WOTS+.</p>
+            teaching model omits the Winternitz checksum chains that couple the digits in real WOTS+.
+            <strong>The panel below adds those checksum chains</strong> and does run a real forgery, verdict and all.</p>
             <fieldset class="controls-row" id="wots-forge-controls" style="display:none">
               <legend class="sr-only">WOTS+ one-chain exposure controls</legend>
               <label for="wots-forge-chain">Chain index:</label>
@@ -325,6 +326,63 @@
             </fieldset>
             <div id="wots-forge-caption" class="viz-caption" role="status" aria-live="polite" hidden></div>
             <div id="wots-forge-output" class="output hidden" role="alert" aria-live="assertive" aria-label="WOTS+ one-chain exposure result"></div>
+          </div>
+
+          <!-- Complete WOTS+ including the Winternitz checksum. The panel above
+               teaches one chain and says plainly that it is not a forgery; this
+               one is the whole signature, so the forgery verdict is real. -->
+          <div class="card">
+            <h2>Forge it yourself — complete WOTS+, checksum included</h2>
+            <p class="muted">The panel above deliberately leaves out the Winternitz checksum, so it can only
+            show what leaks on <em>one</em> chain. This panel runs the <strong>whole</strong> signature:
+            <span id="wp-len-msg">6</span> message chains plus <span id="wp-len-csum">2</span> checksum
+            chains. Raising any message digit <em>lowers</em> the checksum, and a lower number cannot have
+            every base-16 digit greater than or equal to a higher one — that is the entire reason one
+            signature cannot be bent into another. Sign once and the forgery search fails. Sign
+            <strong>twice with the same key</strong> and it succeeds. Both verdicts below come from the same
+            verifier that accepts honest signatures, run on this page.</p>
+
+            <div class="warning" id="wp-scale-note">
+              <strong>Scale: this is a deliberately shrunk WOTS+.</strong>
+              This lab hashes your message to a <strong>24-bit digest</strong> —
+              <span id="wp-scale-len1">6</span> base-16 digits — plus
+              <span id="wp-scale-len2">2</span> checksum digits, for
+              <strong><span id="wp-scale-len">8</span> chains</strong> total.
+              FIPS 205's SHA2-128s parameter set uses a <strong>256-bit digest</strong>
+              (<span id="wp-scale-fips-len1">64</span> digits) plus
+              <span id="wp-scale-fips-len2">3</span> checksum digits =
+              <strong><span id="wp-scale-fips-len">67</span> chains</strong>.
+              The shrink is what lets the forgery <em>search</em> finish in your browser; the checksum rule,
+              the signing rule and the verification rule are identical at both sizes. Everything here is real
+              SHA-256 over real hash chains — only the digest width is reduced. One honest consequence: a
+              24-bit digest is collision-findable, so the search reports "found a digest collision"
+              separately from "beat the checksum", and never credits the second for the first.
+            </div>
+
+            <button id="btn-wp-gen" class="btn-primary" aria-label="Generate a complete WOTS+ key including checksum chains">Generate WOTS+ Key (8 chains: 6 message + 2 checksum)</button>
+
+            <fieldset class="controls-row" id="wp-sign-controls" style="display:none">
+              <legend class="sr-only">Complete WOTS+ signing controls</legend>
+              <label for="wp-message">Message to sign:</label>
+              <input id="wp-message" type="text" value="invoice 001: pay 10 to Alice" maxlength="120" aria-label="Message to sign with the complete WOTS+ key" />
+              <button id="btn-wp-sign" class="btn-secondary" aria-label="Sign this message with the complete WOTS+ key">Sign</button>
+            </fieldset>
+
+            <div id="wp-digits" class="output hidden" role="status" aria-live="polite" aria-label="Digits committed to by the signatures observed so far"></div>
+            <div id="wp-reuse-warning" class="warning hidden" role="alert" aria-live="assertive"></div>
+
+            <fieldset class="controls-row" id="wp-forge-controls" style="display:none">
+              <legend class="sr-only">Complete WOTS+ forgery controls</legend>
+              <label for="wp-target">Message the attacker wants signed:</label>
+              <input id="wp-target" type="text" value="pay 1000000 to Mallory" maxlength="120" aria-label="Target message the attacker is trying to forge a signature for" />
+              <button id="btn-wp-forge" class="btn-danger" aria-label="Attempt to forge a complete WOTS+ signature from the signatures observed">Attempt Forgery</button>
+            </fieldset>
+            <p class="muted" id="wp-forge-help" style="display:none">The attacker grinds nonces onto that
+            message, searching for one whose digits it can reach by hashing forward from the values it has
+            already seen. It never touches the private seed. Budget:
+            <span id="wp-budget">20,000</span> candidates.</p>
+
+            <div id="wp-forge-output" class="output hidden" role="alert" aria-live="assertive" aria-label="Complete WOTS+ forgery result"></div>
           </div>
         </section>
 

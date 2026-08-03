@@ -20,6 +20,21 @@ import {
   type WotsSignatureResult,
 } from './crypto/wots';
 import { renderWotsChain, animateForge } from './visualization/wots-chain';
+import {
+  WP_LEN,
+  WP_LEN1,
+  WP_LEN2,
+  FIPS_LEN1,
+  FIPS_LEN2,
+  generateWotsPlusKeyPair,
+  wotsPlusSign,
+  wotsPlusVerify,
+  observeSignatures,
+  forgeAttempt,
+  searchForgeableMessage,
+  type WotsPlusKeyPair,
+  type WotsPlusSignature,
+} from './crypto/wotsplus';
 import { getStructuralParams } from './crypto/params';
 import { computeForsIndices, buildFors, illustrativeForgeryProbability } from './crypto/fors';
 import { renderFors } from './visualization/fors';
@@ -550,6 +565,258 @@ btnWotsVerify.addEventListener('click', async () => {
     (valid
       ? `<span class="badge badge-valid">VALID</span> — hashed forward ${wotsLastSig.stepsToPublicKey} times from revealed value and reached the public key.`
       : `<span class="badge badge-invalid">FAILED</span>`);
+});
+
+// ─── TAB 3b: COMPLETE WOTS+ (with the Winternitz checksum) ───
+// The panel above is the checksum-free teaching chain and says so. This one is
+// the whole one-time signature, so a forgery verdict here is a real verdict:
+// every verdict below is wotsPlusVerify() run against the honest public key.
+
+const btnWpGen = document.getElementById('btn-wp-gen') as HTMLButtonElement;
+const wpSignControls = document.getElementById('wp-sign-controls')!;
+const wpMessage = document.getElementById('wp-message') as HTMLInputElement;
+const btnWpSign = document.getElementById('btn-wp-sign') as HTMLButtonElement;
+const wpDigits = document.getElementById('wp-digits')!;
+const wpReuseWarning = document.getElementById('wp-reuse-warning')!;
+const wpForgeControls = document.getElementById('wp-forge-controls')!;
+const wpForgeHelp = document.getElementById('wp-forge-help')!;
+const wpTarget = document.getElementById('wp-target') as HTMLInputElement;
+const btnWpForge = document.getElementById('btn-wp-forge') as HTMLButtonElement;
+const wpForgeOutput = document.getElementById('wp-forge-output')!;
+
+// The search budget the page offers, and the number quoted next to the button.
+const WP_FORGE_BUDGET = 20000;
+
+// Fill the scale note from the constants the code actually runs on, so the
+// stated parameters cannot drift away from the implementation.
+function setText(id: string, value: string) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+setText('wp-len-msg', String(WP_LEN1));
+setText('wp-len-csum', String(WP_LEN2));
+setText('wp-scale-len1', String(WP_LEN1));
+setText('wp-scale-len2', String(WP_LEN2));
+setText('wp-scale-len', String(WP_LEN));
+setText('wp-scale-fips-len1', String(FIPS_LEN1));
+setText('wp-scale-fips-len2', String(FIPS_LEN2));
+setText('wp-scale-fips-len', String(FIPS_LEN1 + FIPS_LEN2));
+setText('wp-budget', WP_FORGE_BUDGET.toLocaleString());
+
+let wpKeyPair: WotsPlusKeyPair | null = null;
+let wpSigs: WotsPlusSignature[] = [];
+
+function wpHex(digits: number[]): string {
+  return digits.map((d) => d.toString(16).toUpperCase()).join(' ');
+}
+
+function wpDigitRow(label: string, digits: number[]): string {
+  const cells = digits
+    .map((d, i) => {
+      const hex = d.toString(16).toUpperCase();
+      return i === WP_LEN1 ? `| ${hex}` : hex;
+    })
+    .join(' ');
+  return `${label.padEnd(34)} ${cells}`;
+}
+
+function renderWpDigits() {
+  if (!wpKeyPair) return;
+  const lines = [
+    `Public key: ${bytesToHex(wpKeyPair.publicKey).substring(0, 32)}…`,
+    '',
+    `${wpDigitRow('chain', Array.from({ length: WP_LEN }, (_, i) => i))}`,
+    `(left of the bar: ${WP_LEN1} message digits. right of it: ${WP_LEN2} checksum digits.)`,
+    '',
+  ];
+  for (const s of wpSigs) {
+    lines.push(wpDigitRow(`sig: ${s.message}`.slice(0, 34), s.digits));
+  }
+  if (wpSigs.length > 1) {
+    lines.push(wpDigitRow('ATTACKER FLOOR (per-chain min)', observeSignatures(wpSigs).lowestDigit));
+  }
+  lines.push('');
+  lines.push(
+    `Signatures observed under this key: ${wpSigs.length}. The attacker can reach any digit at or ` +
+      `above the floor on each chain, and nothing below it.`,
+  );
+  wpDigits.textContent = lines.join('\n');
+  wpDigits.classList.remove('hidden');
+}
+
+function resetWpPanel() {
+  wpSigs = [];
+  wpDigits.classList.add('hidden');
+  wpReuseWarning.classList.add('hidden');
+  wpForgeOutput.classList.add('hidden');
+  wpForgeControls.style.display = 'none';
+  wpForgeHelp.style.display = 'none';
+}
+
+btnWpGen.addEventListener('click', async () => {
+  btnWpGen.disabled = true;
+  try {
+    wpKeyPair = await generateWotsPlusKeyPair();
+    resetWpPanel();
+    wpSignControls.style.display = 'flex';
+  } finally {
+    btnWpGen.disabled = false;
+  }
+});
+
+btnWpSign.addEventListener('click', async () => {
+  if (!wpKeyPair) return;
+  const message = wpMessage.value.trim();
+  if (message.length === 0) {
+    wpDigits.innerHTML = `<span class="badge badge-invalid">INVALID</span> Enter a message to sign.`;
+    wpDigits.classList.remove('hidden');
+    return;
+  }
+  if (wpSigs.some((s) => s.message === message)) {
+    wpDigits.innerHTML =
+      `<span class="badge badge-invalid">ALREADY SIGNED</span> That exact message is already signed ` +
+      `under this key. Signing it again reveals nothing new — change the message to reuse the key on ` +
+      `a <em>different</em> one.`;
+    wpDigits.classList.remove('hidden');
+    return;
+  }
+  btnWpSign.disabled = true;
+  try {
+    const sig = await wotsPlusSign(wpKeyPair, message);
+    wpSigs.push(sig);
+
+    // Real verification of the honest signature, so even the baseline verdict on
+    // this panel is computed rather than asserted.
+    const honestValid = await wotsPlusVerify(
+      wpKeyPair.pkSeed,
+      wpKeyPair.publicKey,
+      sig.message,
+      sig.sig,
+    );
+    renderWpDigits();
+    wpDigits.innerHTML +=
+      `\n<strong>Honest signature verifies:</strong> ` +
+      (honestValid
+        ? '<span class="badge badge-valid">VALID</span>'
+        : '<span class="badge badge-invalid">FAILED</span>');
+
+    if (wpSigs.length >= 2) {
+      wpReuseWarning.textContent =
+        `KEY REUSE: ${wpSigs.length} signatures under one WOTS+ key. The attacker now holds, on every ` +
+        `chain, the LOWEST digit any of those signatures revealed — a combination no single honest ` +
+        `signature ever published. That floor is not itself any message's digit vector, and that is ` +
+        `exactly what lets the checksum be satisfied by a message the signer never approved. Run the ` +
+        `forgery search below.`;
+      wpReuseWarning.classList.remove('hidden');
+    } else {
+      wpReuseWarning.classList.add('hidden');
+    }
+
+    wpForgeControls.style.display = 'flex';
+    wpForgeHelp.style.display = '';
+  } finally {
+    btnWpSign.disabled = false;
+  }
+});
+
+btnWpForge.addEventListener('click', async () => {
+  if (!wpKeyPair || wpSigs.length === 0) return;
+  const base = wpTarget.value.trim();
+  if (base.length === 0) {
+    wpForgeOutput.innerHTML = `<span class="badge badge-invalid">INVALID</span> Enter a target message.`;
+    wpForgeOutput.classList.remove('hidden');
+    return;
+  }
+  btnWpForge.disabled = true;
+  wpForgeOutput.textContent = 'Searching…';
+  wpForgeOutput.classList.remove('hidden');
+  // Yield once so the "Searching…" state paints before the grind starts.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  try {
+    const knowledge = observeSignatures(wpSigs);
+    const result = await searchForgeableMessage(wpKeyPair.pkSeed, knowledge, base, WP_FORGE_BUDGET);
+
+    if (!result.found) {
+      // The reachable failure path. Report how close the search came and which
+      // chains blocked it, so the refusal is evidence rather than a shrug.
+      const closest = await forgeAttempt(wpKeyPair.pkSeed, knowledge, result.bestCandidate);
+      wpForgeOutput.innerHTML =
+        `<span class="badge badge-valid">FORGERY FAILED</span> — searched ` +
+        `${result.tried.toLocaleString()} candidate messages against ${wpSigs.length} observed ` +
+        `signature${wpSigs.length === 1 ? '' : 's'}; none was forgeable.\n\n` +
+        `<strong>Where the checksum did the work:</strong>\n` +
+        `  ${result.msgChainsCleared.toLocaleString()} of ${result.tried.toLocaleString()} candidates ` +
+        `cleared every one of the ${WP_LEN1} message chains.\n` +
+        `  ${result.blockedOnChecksum.toLocaleString()} of those ${result.msgChainsCleared.toLocaleString()} ` +
+        `were then blocked by a checksum chain.\n\n` +
+        `That second line is the mechanism, not bad luck. Clearing the message chains means raising ` +
+        `message digits, and raising message digits is <em>precisely</em> what drives the Winternitz ` +
+        `checksum down — so the checksum chains then demand a digit below the attacker's floor, and hash ` +
+        `chains only run forward. Every candidate that got past the message digits died on the checksum.\n\n` +
+        `<strong>Closest candidate overall:</strong> ${escapeHtml(result.bestCandidate)}\n` +
+        `<strong>Its digits:</strong> ${wpHex(closest.digits)}\n` +
+        `<strong>Attacker's floor:</strong> ${wpHex(knowledge.lowestDigit)}\n` +
+        `<strong>Chains still out of reach (${closest.blocks.length}):</strong> ` +
+        closest.blocks
+          .map(
+            (b) =>
+              `chain ${b.chainIndex}${b.isChecksumChain ? ' (checksum)' : ''} needs ` +
+              `${b.needed.toString(16).toUpperCase()}, lowest value held is ` +
+              `${b.lowest.toString(16).toUpperCase()}`,
+          )
+          .join('; ') +
+        (wpSigs.length === 1
+          ? `\n\nNow sign a <strong>second, different</strong> message with this same key and run the ` +
+            `search again. One key, one signature is safe; the second signature is what breaks it.`
+          : '');
+      return;
+    }
+
+    const attempt = result.attempt!;
+    // The verdict is the real verifier's, run against the honest public key.
+    const valid = await wotsPlusVerify(
+      wpKeyPair.pkSeed,
+      wpKeyPair.publicKey,
+      attempt.target,
+      attempt.sig!,
+    );
+    const replay = wpSigs.some((s) => s.message === attempt.target);
+    const collision = attempt.collidesWithObserved >= 0;
+
+    wpForgeOutput.innerHTML =
+      (valid && !replay
+        ? `<span class="badge badge-invalid">FORGERY SUCCEEDED</span>`
+        : `<span class="badge badge-valid">FORGERY FAILED</span>`) +
+      ` — found after ${result.tried.toLocaleString()} candidate ` +
+      `message${result.tried === 1 ? '' : 's'}.\n\n` +
+      `<strong>Forged message:</strong> ${escapeHtml(attempt.target)}\n` +
+      `<strong>Signer ever approved it:</strong> ` +
+      `${replay ? 'yes — this is a replay, not a forgery' : 'no'}\n` +
+      `<strong>Its digits:</strong> ${wpHex(attempt.digits)}\n` +
+      `<strong>Attacker's floor:</strong> ${wpHex(knowledge.lowestDigit)} — every digit at or above ` +
+      `this is reachable by hashing forward\n` +
+      `<strong>Forged signature (chain 0):</strong> ` +
+      `${bytesToHex(attempt.sig![0]).substring(0, 32)}…\n\n` +
+      `<strong>wotsPlusVerify() against the honest public key returned:</strong> ` +
+      (valid
+        ? `<span class="badge badge-invalid">true</span>`
+        : `<span class="badge badge-valid">false</span>`) +
+      `\n\n` +
+      (collision
+        ? `<strong>Attribution: this is a DIGEST COLLISION, not a defeat of the checksum.</strong> The ` +
+          `candidate's 24-bit digest equals that of the already-signed message ` +
+          `"${escapeHtml(knowledge.observedMessages[attempt.collidesWithObserved])}", so its digits are ` +
+          `identical and no checksum chain had to be beaten. At FIPS 205's 256-bit digest this route is ` +
+          `not available — it is an artefact of this lab's reduced width, and the page will not credit ` +
+          `the checksum break for it.`
+        : `<strong>Attribution: the checksum was genuinely satisfied by a message the signer never ` +
+          `approved.</strong> These digits are not any observed message's digits — they were reachable ` +
+          `only from the per-chain minimum across ${wpSigs.length} signatures, a combination no single ` +
+          `signature published. This is the real WOTS+ key-reuse forgery, and it works the same way at ` +
+          `full FIPS 205 parameters.`);
+  } finally {
+    btnWpForge.disabled = false;
+  }
 });
 
 // ─── TAB: FORS ───
