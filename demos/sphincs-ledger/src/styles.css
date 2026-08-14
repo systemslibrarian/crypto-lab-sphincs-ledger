@@ -50,6 +50,28 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ─── Hiding, once, for everything ───
+   The UA rule `[hidden] { display: none }` has specificity (0,1,0) — exactly a
+   class's — and loses to any author rule that also sets `display`. So
+   `.viz-caption { … }` or `.theme-toggle { display: inline-flex }` silently
+   outranks it and the element paints while the code that set `hidden` believes
+   it is gone. This fleet has had four live instances of that.
+
+   Both hiding mechanisms this page uses are covered, because `[hidden]` does
+   not match `class="hidden"` and vice versa:
+     - the `hidden` ATTRIBUTE  (`el.hidden = true`, setAttribute)
+     - the `hidden` CLASS      (`el.classList.add('hidden')`)
+
+   This replaces the per-element patches (`.tab-panel.hidden`, `.output.hidden`,
+   `.spinner.hidden`, `.warning.hidden`, `.viz-caption[hidden]`) that each fixed
+   one case after the fact — the next hideable thing would have shipped broken
+   by default. `!important` is the point: it must outrank whatever `display` the
+   element's own rules set. Anything that needs to show drops the attribute or
+   the class rather than fighting this rule. e2e/hidden.spec.ts asserts it, once
+   per tab. */
+[hidden] { display: none !important; }
+.hidden { display: none !important; }
+
 /* ─── Skip link (ADA) ─── */
 .skip-link {
   position: absolute;
@@ -185,7 +207,6 @@ body {
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
-.tab-panel.hidden { display: none; }
 
 /* Cards */
 .card {
@@ -305,8 +326,6 @@ button:disabled {
   white-space: pre-wrap;
 }
 
-.output.hidden { display: none; }
-
 /* Info card (param sizes) */
 .info-card {
   background: var(--surface2);
@@ -348,8 +367,6 @@ button:disabled {
   font-size: 0.85rem;
 }
 
-.spinner.hidden { display: none; }
-
 .spinner-dot {
   width: 16px;
   height: 16px;
@@ -380,8 +397,6 @@ button:disabled {
   border-color: #f59e0b;
   color: #92400e;
 }
-
-.warning.hidden { display: none; }
 
 /* Tables */
 table {
@@ -796,7 +811,6 @@ fieldset {
   line-height: 1.5;
   color: var(--text);
 }
-.viz-caption[hidden] { display: none; }
 .viz-caption .caption-hash {
   font-family: var(--font-mono);
   color: var(--primary-hover);
