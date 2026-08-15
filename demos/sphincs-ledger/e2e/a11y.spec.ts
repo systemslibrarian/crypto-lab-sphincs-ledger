@@ -150,7 +150,7 @@ async function scan(page: Page): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('.');
-  await expect(page.locator('#cl-theme-toggle')).toBeVisible();
+  await expect(page.locator('.cl-topbar')).toBeVisible();
   await expect(page.locator('#tab-btn-sign')).toBeVisible();
   await killMotion(page);
 });
@@ -163,11 +163,3 @@ test('no WCAG A/AA violations in dark theme (all demos driven)', async ({ page }
   await scan(page);
 });
 
-test('no WCAG A/AA violations in light theme (all demos driven)', async ({ page }) => {
-  await page.locator('#cl-theme-toggle').click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await driveDemos(page);
-  await killMotion(page);
-  await revealAll(page);
-  await scan(page);
-});
