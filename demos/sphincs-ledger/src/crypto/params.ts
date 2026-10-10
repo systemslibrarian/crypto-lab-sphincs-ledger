@@ -59,3 +59,17 @@ export function getStructuralParams(set: SphincsParamSet): SphincsStructuralPara
     leavesPerLayer: 2 ** hPrime,
   };
 }
+
+/** FIPS 205 §5 equations 5.1–5.4, derived from the selected signer's Table 2 n/w.
+ * These describe the standard comparison, not the reduced teaching signer. */
+export function getWotsDimensions(set: SphincsParamSet) {
+  const { n, w } = getStructuralParams(set);
+  const messageBits = 8 * n;
+  const len1 = Math.ceil(messageBits / Math.log2(w));
+  // Integer-capacity form of FIPS 205 Algorithm 1: checksum must fit.
+  const maxChecksum = len1 * (w - 1);
+  let len2 = 1;
+  let capacity = w;
+  while (capacity <= maxChecksum) { len2++; capacity *= w; }
+  return { n, w, messageBits, len1, len2, len: len1 + len2 };
+}

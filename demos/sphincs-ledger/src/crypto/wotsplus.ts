@@ -9,13 +9,16 @@
 // lower number cannot have every base-w digit greater than or equal to a
 // higher one.
 //
-// SCALE. Everything here is real SHA-256 with real chains; only the width of
-// the message digest is reduced. This lab hashes a message to a 24-bit digest
+// SCALE. Real SHA-256 chains with a reduced message digest, 32-byte chain
+// values and simplified addressing. This lab hashes a message to a 24-bit digest
 // (LEN1 = 6 base-16 digits) plus LEN2 = 2 checksum digits = 8 chains, where
-// FIPS 205's SHA2-128s parameter set uses a 256-bit digest (64 digits) plus 3
-// checksum digits = 67 chains. The reduction is what makes the key-reuse
-// forgery *search* finish in a browser; the checksum mechanism, the signing
-// rule, and the verification rule are identical at both sizes. One consequence
+// FIPS 205's SHA2-128s parameter set uses a 128-bit WOTS+ message (32 digits)
+// plus 3 checksum digits = 35 chains; SHA2-256s uses 256 bits / 67 chains.
+// The width reduction is what makes the key-reuse
+// forgery *search* finish in a browser. The digit/checksum logic and
+// hash-forward reasoning are demonstrated here.
+// Chain values remain 32-byte SHA-256 values and the addressing is simplified;
+// this is not a FIPS-conforming WOTS+ implementation. One consequence
 // of the narrow digest is honest and reported rather than hidden: a 24-bit
 // digest is collision-findable, so the search separates "beat the checksum"
 // from "hit a digest collision" (see `collidesWithObserved`).
@@ -25,6 +28,7 @@
 // than FIPS 205's full ADRS structure.
 
 import { sha256, concatBytes } from './hash';
+import { getWotsDimensions } from './params';
 
 export const WP_W = 16; // Winternitz parameter
 export const WP_LOG_W = 4; // log2(w) — one base-w digit is one nibble
@@ -34,9 +38,9 @@ export const WP_LEN2 = Math.floor(Math.log2(WP_LEN1 * (WP_W - 1)) / WP_LOG_W) + 
 export const WP_LEN = WP_LEN1 + WP_LEN2;
 export const WP_MAX_STEP = WP_W - 1; // chain endpoint index
 
-// Real FIPS 205 SHA2-128s widths, quoted on the page for the scale contrast.
-export const FIPS_LEN1 = 64;
-export const FIPS_LEN2 = 3;
+// Legacy SHA2-128s comparison exports. The UI uses selected-set dimensions.
+export const FIPS_LEN1 = getWotsDimensions('sha2-128s').len1;
+export const FIPS_LEN2 = getWotsDimensions('sha2-128s').len2;
 
 const ASCII = new TextEncoder();
 

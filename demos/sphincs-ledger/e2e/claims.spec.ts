@@ -24,10 +24,10 @@ test('complete WOTS+ states its reduced scale next to the forgery it offers', as
   const scale = page.locator('#wp-scale-note');
   await expect(scale).toContainText('deliberately shrunk WOTS+');
   await expect(scale).toContainText('24-bit digest');
-  await expect(scale).toContainText('256-bit digest');
+  await expect(scale).toContainText('128-bit');
   // The stated parameters are filled in from the constants the code runs on.
   await expect(page.locator('#wp-scale-len')).toHaveText('8');
-  await expect(page.locator('#wp-scale-fips-len')).toHaveText('67');
+  await expect(page.locator('#wp-scale-fips-len')).toHaveText('35');
   await expect(page.locator('#wp-scale-len1')).toHaveText('6');
   await expect(page.locator('#wp-scale-len2')).toHaveText('2');
 });
