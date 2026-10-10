@@ -24,8 +24,6 @@ import {
   WP_LEN,
   WP_LEN1,
   WP_LEN2,
-  FIPS_LEN1,
-  FIPS_LEN2,
   generateWotsPlusKeyPair,
   wotsPlusSign,
   wotsPlusVerify,
@@ -35,7 +33,7 @@ import {
   type WotsPlusKeyPair,
   type WotsPlusSignature,
 } from './crypto/wotsplus';
-import { getStructuralParams } from './crypto/params';
+import { getStructuralParams, getWotsDimensions } from './crypto/params';
 import { computeForsIndices, buildFors, illustrativeForgeryProbability } from './crypto/fors';
 import { renderFors } from './visualization/fors';
 import { renderHypertree } from './visualization/hypertree';
@@ -223,6 +221,7 @@ function updateParamInfo() {
     <span class="label">Signature</span><span class="value">${p.signature.toLocaleString()} bytes</span>
     <span class="label">Security level</span><span class="value">${p.security}-bit</span>
   `;
+  updateWotsScaleNote();
 }
 paramSelect.addEventListener('change', updateParamInfo);
 updateParamInfo();
@@ -598,9 +597,15 @@ setText('wp-len-csum', String(WP_LEN2));
 setText('wp-scale-len1', String(WP_LEN1));
 setText('wp-scale-len2', String(WP_LEN2));
 setText('wp-scale-len', String(WP_LEN));
-setText('wp-scale-fips-len1', String(FIPS_LEN1));
-setText('wp-scale-fips-len2', String(FIPS_LEN2));
-setText('wp-scale-fips-len', String(FIPS_LEN1 + FIPS_LEN2));
+function updateWotsScaleNote() {
+  const p = getWotsDimensions(currentParamSet);
+  setText('wp-scale-fips-set', `SLH-DSA-${currentParamSet.replace('sha2-', 'SHA2-')}`);
+  setText('wp-scale-fips-bits', String(p.messageBits));
+  setText('wp-scale-fips-len1', String(p.len1));
+  setText('wp-scale-fips-len2', String(p.len2));
+  setText('wp-scale-fips-len', String(p.len));
+}
+updateWotsScaleNote();
 setText('wp-budget', WP_FORGE_BUDGET.toLocaleString());
 
 let wpKeyPair: WotsPlusKeyPair | null = null;
@@ -806,8 +811,10 @@ btnWpForge.addEventListener('click', async () => {
         ? `<strong>Attribution: this is a DIGEST COLLISION, not a defeat of the checksum.</strong> The ` +
           `candidate's 24-bit digest equals that of the already-signed message ` +
           `"${escapeHtml(knowledge.observedMessages[attempt.collidesWithObserved])}", so its digits are ` +
-          `identical and no checksum chain had to be beaten. At FIPS 205's 256-bit digest this route is ` +
-          `not available — it is an artefact of this lab's reduced width, and the page will not credit ` +
+          `identical and no checksum chain had to be beaten. The standard's WOTS+ message width is ` +
+          `${getWotsDimensions(currentParamSet).messageBits} bits for the selected set; this practical ` +
+          `collision search is an artefact of the toy's 24-bit width, not a claim that mathematical ` +
+          `collisions are impossible at full width. The page will not credit ` +
           `the checksum break for it.`
         : `<strong>Attribution: the checksum was genuinely satisfied by a message the signer never ` +
           `approved.</strong> These digits are not any observed message's digits — they were reachable ` +

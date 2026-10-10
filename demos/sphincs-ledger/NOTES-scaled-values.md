@@ -79,28 +79,35 @@ under "Honesty Notes / KNOWN-GAPS".
   tab (item 5b) is checksum-complete, so the tab now shows both the isolated
   chain and the whole signature.
 
-### 5b. Complete WOTS+ runs at a reduced DIGEST WIDTH (not a reduced mechanism)
+### 5b. Checksum-complete WOTS+ teaching model: reduced digest and simplified addressing
 - **What:** `src/crypto/wotsplus.ts` implements the whole one-time signature —
   message chains *and* Winternitz checksum chains — but hashes the message to a
   **24-bit digest**: `len1 = 6` base-16 digits, `len2 = 2` checksum digits,
-  **8 chains** total. FIPS 205's SHA2-128s uses a 256-bit digest (`len1 = 64`)
-  plus `len2 = 3`, for **67 chains**.
-- **Why:** The exhibit lets the learner *run the forgery search*. At 256 bits the
+  **8 chains** total. FIPS 205's SHA2-128f/s use n=16 and a 128-bit WOTS+
+  message (`len1 = 32`) plus `len2 = 3`, for **35 chains**. SHA2-256f/s use
+  n=32, 256 bits and 64+3=67 chains. The UI derives the comparison from the
+  selected signer's noble-backed n/w, not SHA-256's full output width.
+- **Why:** The exhibit lets the learner *run the forgery search*. At full 128/256-bit widths the
   search space is fine but the honest-failure demonstration needs thousands of
   candidate hashes per attempt, and the two-signature success needs the digit
   vectors to overlap often enough to find a hit interactively. Narrowing the
   digest is what makes both finish in a browser.
-- **What is NOT scaled:** `w = 16`, the chain construction, the checksum formula
+- **What is demonstrated:** `w = 16`, the checksum formula
   `len2 = floor(log2(len1(w−1))/log2 w) + 1`, the signing rule
   (`sig[i] = chain^{d_i}(sk_i)`), and the verification rule
-  (`chain^{w−1−d_i}(sig[i])` → endpoint → compressed public key) are all exactly
-  the FIPS 205 §5 rules. Every hash is real SHA-256 via Web Crypto.
+  (`chain^{w−1−d_i}(sig[i])` → endpoint → compressed public key) demonstrate
+  the FIPS 205 §5 digit/checksum reasoning. Every model hash is SHA-256 via
+  Web Crypto with 32-byte chain values and simplified domain separation
+  (`pkSeed || tag || chain index || step`), rather than the full standard
+  ADRS/hash construction. This model is not FIPS-conforming; the actual
+  SLH-DSA signing path remains the separate noble implementation.
 - **The honest consequence, reported rather than hidden:** a 24-bit digest is
   collision-findable within the search budget, and a collision would let a forgery
   through *without* beating the checksum. So `forgeAttempt` returns
   `collidesWithObserved`, and the page attributes such a hit to the collision
-  explicitly instead of crediting the checksum break. At full width that route is
-  unavailable.
+  explicitly instead of crediting the checksum break. Full-width collisions
+  remain mathematically possible; the practical 24-bit search is a toy-scale
+  effect, not a proof of collision impossibility at 128 or 256 bits.
 - **Measured behaviour** (`src/__tests__/wotsplus-measure.test.ts`, 20 trials):
   with **one** signature observed, 0/20 forgeries within 3,000 candidates; with
   **two** signatures under the same key, 20/20 forgeries, median ~30 candidates.

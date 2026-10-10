@@ -339,13 +339,15 @@
               <span id="wp-scale-len1">6</span> base-16 digits — plus
               <span id="wp-scale-len2">2</span> checksum digits, for
               <strong><span id="wp-scale-len">8</span> chains</strong> total.
-              FIPS 205's SHA2-128s parameter set uses a <strong>256-bit digest</strong>
-              (<span id="wp-scale-fips-len1">64</span> digits) plus
+              FIPS 205's selected <span id="wp-scale-fips-set">SLH-DSA-SHA2-128f</span> parameter set uses a
+              <strong><span id="wp-scale-fips-bits">128</span>-bit WOTS+ message</strong>
+              (<span id="wp-scale-fips-len1">32</span> digits) plus
               <span id="wp-scale-fips-len2">3</span> checksum digits =
-              <strong><span id="wp-scale-fips-len">67</span> chains</strong>.
-              The shrink is what lets the forgery <em>search</em> finish in your browser; the checksum rule,
-              the signing rule and the verification rule are identical at both sizes. Everything here is real
-              SHA-256 over real hash chains — only the digest width is reduced. One honest consequence: a
+              <strong><span id="wp-scale-fips-len">35</span> chains</strong>, derived from the selected signer's n and w.
+              The shrink is what lets the forgery <em>search</em> finish in your browser. This model demonstrates
+              the digit/checksum logic and hash-forward reasoning using real SHA-256 chains. It also keeps
+              32-byte chain values and simplified addressing rather than FIPS 205's full ADRS/hash construction;
+              it is not a FIPS-conforming WOTS+ implementation. One honest consequence: a
               24-bit digest is collision-findable, so the search reports "found a digest collision"
               separately from "beat the checksum", and never credits the second for the first.
             </div>
