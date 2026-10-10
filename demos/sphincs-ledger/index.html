@@ -475,8 +475,8 @@
         <!-- Tab 4: Ledger -->
         <section id="tab-ledger" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-btn-ledger">
           <div class="card">
-            <h2>Signed Ledger</h2>
-            <p class="muted">Append-only ledger of SPHINCS+ signed entries. Each entry uses a fresh keypair — no shared keys or PKI required.</p>
+            <h2>Independently Signed Messages</h2>
+            <p id="ledger-scope" class="warning">This is a collection of independently signed message bytes, not an append-only authenticated ledger. Each entry supplies its own fresh public key. The author and timestamp are unsigned, and signatures do not protect ordering or completeness or bind a key to a trusted identity. No PKI is used here; signature verification alone does not identify Alice. See <a href="https://csrc.nist.gov/pubs/fips/205/final" target="_blank" rel="noopener">FIPS 205 §1.1</a> on additional identity assurances.</p>
             <fieldset class="controls-row">
               <legend class="sr-only">Add a new ledger entry</legend>
               <label for="ledger-author" class="sr-only">Author name</label>
@@ -494,12 +494,19 @@
             </fieldset>
             <div id="ledger-spinner" class="spinner hidden" role="status" aria-live="polite">
               <div class="spinner-dot" aria-hidden="true"></div>
-              <span>Generating keypair and signing...</span>
+              <span>Working with message signatures...</span>
             </div>
             <div class="controls-row" role="toolbar" aria-label="Ledger actions">
               <button id="btn-ledger-verify" class="btn-secondary" aria-label="Verify all ledger entries">Verify All</button>
               <button id="btn-ledger-tamper" class="btn-danger" disabled aria-label="Tamper with the latest ledger entry">Tamper Latest Entry</button>
               <button id="btn-ledger-clear" class="btn-danger" aria-label="Clear all ledger entries">Clear Ledger</button>
+            </div>
+            <p class="muted">Compare message tampering with edits outside the signature's scope. These exercises run the real verifier; a valid message signature does not certify the collection or the displayed author.</p>
+            <div class="controls-row" role="toolbar" aria-label="Unsigned collection exercises">
+              <button id="btn-ledger-metadata" class="btn-secondary" disabled>Edit Unsigned Metadata</button>
+              <button id="btn-ledger-reverse" class="btn-secondary" disabled>Reverse Order</button>
+              <button id="btn-ledger-remove" class="btn-secondary" disabled>Remove Last Entry</button>
+              <button id="btn-ledger-replace-key" class="btn-secondary" disabled>Replace Key &amp; Re-sign</button>
             </div>
             <div id="ledger-tamper-explanation" class="warning hidden" role="alert" aria-live="assertive"></div>
             <div id="ledger-entries" aria-label="Ledger entries list"></div>

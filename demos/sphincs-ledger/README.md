@@ -23,7 +23,7 @@ introduces the load-bearing jargon (WOTS+, FORS, XMSS, hypertree, authentication
 5. **Hypertree** — The *d* layers of XMSS trees, each root signed by a WOTS+ leaf one layer up, climbing to the top root = public key. Annotates the size story (FORS sig + *d* × (WOTS+ sig + auth path)) that explains the 8 KB–50 KB signatures.
 6. **Collision tolerance** — Signs two messages with the same key, compares the two *k*-index vectors, and contrasts FORS's graceful degradation (few-time security → why SLH-DSA is stateless) against WOTS+'s catastrophic reuse. A **live coverage visual** fills *k* tree-cells toward all-*k* as you raise N, so the erosion of the few-time margin is watched approaching the cliff, not just read from the probability formula.
 7. **Sign & Verify — with a "Peek inside" bridge** — Generate a keypair and sign with the real `@noble/post-quantum` SLH-DSA. After signing, a **Peek inside** toggle expands a schematic of the fixed pipeline — FORS pubkey → bottom XMSS leaf → climb *d* layers to the root. Noble does not expose the signature's internal indices, so the amber route is explicitly illustrative rather than parsed from that signature.
-8. **Ledger signing** — Append-only ledger of SPHINCS+ signed entries with tamper detection. Each entry generates a fresh keypair — no shared keys or PKI required.
+8. **Independently signed messages** — The historical Ledger tab/API collects signatures over message bytes under fresh, self-supplied per-entry keys. Author/time are unsigned; ordering, completeness and trusted key-to-author binding are not verified. Metadata/reorder/remove/key-replacement exercises run the real verifier and explain why valid message signatures do not authenticate the collection or the typed author. A replaced key/signature is ordinary signing with a different key, not a forgery under the original key. Changed-message verification still fails. Reloaded records remain **NOT VERIFIED** until an actual verification runs; stored verdict flags are not trusted. An authenticated append-only protocol would additionally need signed sequence/predecessor commitments and an externally trusted checkpoint; a hash chain alone cannot detect arbitrary truncation.
 9. **Parameter set comparison** — All four SHA-2 parameter sets (128f, 128s, 256f, 256s) with measured signing times and size comparisons against RSA, Ed25519, and ML-DSA.
 
 ### Where the real parameters now come from
@@ -145,7 +145,7 @@ the `s` sets use **fewer tall** ones:
 | FORS trees + public key | **Parallel reconstruction** — our own model (noble exposes no FORS internals); trees drawn/rooted at reduced height, digest modeled with SHA-256 + MGF1 |
 | Hypertree diagram | **Illustrative** — real `d`/`h`/`h′`; XMSS trees drawn as schematic triangles |
 | Collision security margin | **Illustrative estimate** — a rough bound, explicitly not a proof |
-| Ledger | **Demo** — sessionStorage persistence, no consensus or networking |
+| Historical Ledger tab/API | **Independent message signatures** — sessionStorage persistence; unsigned metadata, no authenticated order/completeness, no trusted identity binding, consensus or networking |
 
 ## Honesty Notes / KNOWN-GAPS
 

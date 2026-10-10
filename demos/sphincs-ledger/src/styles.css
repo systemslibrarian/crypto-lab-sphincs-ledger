@@ -392,6 +392,10 @@ button:disabled {
   line-height: 1.5;
 }
 
+/* The scope citation uses the warning's tested text contrast in both themes;
+   underline preserves its link affordance without relying on color alone. */
+#ledger-scope a { color: inherit; text-decoration: underline; }
+
 [data-theme='light'] .warning {
   background: #fefce8;
   border-color: #f59e0b;
