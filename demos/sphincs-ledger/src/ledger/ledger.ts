@@ -1,6 +1,6 @@
-// Signed ledger — append-only log of SPHINCS+ signed entries
-// Each entry generates a fresh keypair, demonstrating that SPHINCS+
-// does not require shared keys or a PKI.
+// Independently signed message bytes under supplied per-entry public keys.
+// Metadata, order, completeness and key-to-identity binding are not signed.
+// The historical Ledger API name does not imply authenticated append-only state.
 
 import { generateKeyPair, sign, verify, type SphincsParamSet } from '../crypto/sphincs';
 import { bytesToHex } from '../crypto/hash';
@@ -13,7 +13,7 @@ export interface LedgerEntry {
   publicKey: Uint8Array;
   signature: Uint8Array;
   paramSet: SphincsParamSet;
-  valid: boolean;
+  valid: boolean | null; // null = not verified in this instance
 }
 
 interface SerializedEntry {
@@ -24,7 +24,7 @@ interface SerializedEntry {
   publicKey: string;
   signature: string;
   paramSet: SphincsParamSet;
-  valid: boolean;
+  valid: boolean | null;
 }
 
 function hexToUint8(hex: string): Uint8Array {
@@ -56,7 +56,7 @@ export class Ledger {
       publicKey: keyPair.publicKey,
       signature,
       paramSet: params,
-      valid: true,
+      valid: await verify(keyPair.publicKey, msgBytes, signature, params),
     };
 
     this.entries.push(entry);
@@ -115,6 +115,9 @@ export class Ledger {
         ...e,
         publicKey: hexToUint8(e.publicKey),
         signature: hexToUint8(e.signature),
+        // Stored flags are not evidence about the bytes loaded now. A real
+        // verification is required before showing a success or failure badge.
+        valid: null,
       }));
       this.nextId = this.entries.length > 0
         ? Math.max(...this.entries.map((e) => e.id)) + 1

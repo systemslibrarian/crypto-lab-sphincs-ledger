@@ -155,5 +155,5 @@ test('ledger tampering reports the real verifier result', async ({ page }) => {
 
   await expect(page.locator('#ledger-tamper-explanation')).toContainText('ran SPHINCS+ verify()');
   await expect(page.locator('#ledger-tamper-explanation')).toContainText('returned false');
-  await expect(page.locator('#ledger-entries .badge-invalid').last()).toHaveText('INVALID');
+  await expect(page.locator('#ledger-entries .badge-invalid').last()).toHaveText('INVALID MESSAGE SIGNATURE');
 });

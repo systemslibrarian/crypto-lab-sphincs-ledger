@@ -1025,27 +1025,40 @@ const btnLedgerClear = document.getElementById('btn-ledger-clear') as HTMLButton
 const ledgerSpinner = document.getElementById('ledger-spinner')!;
 const ledgerEntries = document.getElementById('ledger-entries')!;
 const ledgerTamperExpl = document.getElementById('ledger-tamper-explanation')!;
+const btnLedgerMetadata = document.getElementById('btn-ledger-metadata') as HTMLButtonElement;
+const btnLedgerReverse = document.getElementById('btn-ledger-reverse') as HTMLButtonElement;
+const btnLedgerRemove = document.getElementById('btn-ledger-remove') as HTMLButtonElement;
+const btnLedgerReplaceKey = document.getElementById('btn-ledger-replace-key') as HTMLButtonElement;
+const ledgerButtons = [btnLedgerAdd, btnLedgerVerify, btnLedgerTamper, btnLedgerClear,
+  btnLedgerMetadata, btnLedgerReverse, btnLedgerRemove, btnLedgerReplaceKey];
+let ledgerBusy = false;
 
 function renderLedger() {
   ledgerEntries.innerHTML = '';
+  for (const button of ledgerButtons) button.disabled = ledgerBusy;
+  for (const button of [btnLedgerTamper, btnLedgerMetadata, btnLedgerRemove, btnLedgerReplaceKey]) {
+    button.disabled = ledgerBusy || ledger.entries.length === 0;
+  }
+  btnLedgerReverse.disabled = ledgerBusy || ledger.entries.length < 2;
   if (ledger.entries.length === 0) {
     ledgerEntries.innerHTML = '<p class="muted">No entries yet. Add one above.</p>';
-    btnLedgerTamper.disabled = true;
     return;
   }
-  btnLedgerTamper.disabled = false;
 
   for (const entry of ledger.entries) {
     const div = document.createElement('div');
-    div.className = `ledger-entry${entry.valid ? '' : ' invalid'}`;
+    div.className = `ledger-entry${entry.valid === false ? ' invalid' : ''}`;
+    const badgeClass = entry.valid === true ? 'badge-valid' : entry.valid === false ? 'badge-invalid' : '';
+    const verdict = entry.valid === true ? 'VALID MESSAGE SIGNATURE' : entry.valid === false ? 'INVALID MESSAGE SIGNATURE' : 'NOT VERIFIED';
     div.innerHTML = `
       <div class="entry-header">
-        <span class="entry-author">#${entry.id} — ${escapeHtml(entry.author)}</span>
-        <span class="badge ${entry.valid ? 'badge-valid' : 'badge-invalid'}">${entry.valid ? 'VALID' : 'INVALID'}</span>
+        <span class="entry-author">#${escapeHtml(String(entry.id))} — ${escapeHtml(entry.author)} (unsigned label)</span>
+        <span class="badge ${badgeClass}">${verdict}</span>
       </div>
       <div class="entry-message">${escapeHtml(entry.message)}</div>
       <div class="entry-meta">
-        ${entry.timestamp} · ${entry.paramSet} · sig: ${entry.signature.length.toLocaleString()} B · ${bytesToHex(entry.signature).substring(0, 24)}…
+        ${escapeHtml(entry.timestamp)} (unsigned time) · ${escapeHtml(entry.paramSet)} · sig: ${entry.signature.length.toLocaleString()} B · ${bytesToHex(entry.signature).substring(0, 24)}…
+        <br>Signature scope: message bytes under this entry's supplied public key; no trusted author binding.
       </div>
     `;
     ledgerEntries.appendChild(div);
@@ -1060,44 +1073,89 @@ function escapeHtml(s: string): string {
 
 renderLedger();
 
+async function runLedgerAction(action: () => void | Promise<void>, explanation = ''): Promise<void> {
+  if (ledgerBusy) return;
+  ledgerBusy = true;
+  renderLedger();
+  ledgerSpinner.classList.remove('hidden');
+  let result: Awaited<ReturnType<Ledger['verifyAll']>> | null = null;
+  try {
+    await action();
+    result = await ledger.verifyAll();
+    ledgerTamperExpl.textContent = explanation;
+    ledgerTamperExpl.classList.toggle('hidden', !explanation);
+  } catch {
+    // An interrupted/failed action must not leave a stale green verdict.
+    for (const entry of ledger.entries) entry.valid = null;
+    ledgerTamperExpl.textContent = 'This action did not finish. Message signatures are not verified; no collection or identity assurance is established.';
+    ledgerTamperExpl.classList.remove('hidden');
+  } finally {
+    ledgerBusy = false;
+    ledgerSpinner.classList.add('hidden');
+    renderLedger();
+  }
+  if (result) {
+    const summary = document.createElement('div');
+    summary.className = 'output';
+    summary.textContent = `Message signatures checked: ${result.valid} valid, ${result.invalid} invalid out of ${result.entries.length} present entries. This does not verify author/time, order, completeness or trusted identity.`;
+    ledgerEntries.insertBefore(summary, ledgerEntries.firstChild);
+  }
+}
+
 btnLedgerAdd.addEventListener('click', async () => {
   const author = (document.getElementById('ledger-author') as HTMLInputElement).value || 'Anonymous';
   const message = (document.getElementById('ledger-message') as HTMLInputElement).value || '(empty)';
   const params = (document.getElementById('ledger-param') as HTMLSelectElement).value as SphincsParamSet;
 
-  ledgerSpinner.classList.remove('hidden');
-  btnLedgerAdd.disabled = true;
-
-  try {
+  await runLedgerAction(async () => {
     await ledger.addEntry(author, message, params);
-    ledgerTamperExpl.classList.add('hidden');
-    renderLedger();
-  } finally {
-    ledgerSpinner.classList.add('hidden');
-    btnLedgerAdd.disabled = false;
-  }
+  });
 });
 
 btnLedgerVerify.addEventListener('click', async () => {
-  const result = await ledger.verifyAll();
-  renderLedger();
-  const summary = document.createElement('div');
-  summary.className = 'output';
-  summary.innerHTML = `<strong>Verification complete:</strong> ${result.valid} valid, ${result.invalid} invalid out of ${result.entries.length} entries.`;
-  ledgerEntries.insertBefore(summary, ledgerEntries.firstChild);
+  await runLedgerAction(() => {});
 });
 
 btnLedgerTamper.addEventListener('click', async () => {
   const latest = ledger.entries[ledger.entries.length - 1];
   if (!latest) return;
-  btnLedgerTamper.disabled = true;
-  const valid = await ledger.tamperEntry(latest.id, latest.message + ' [TAMPERED]');
-  ledgerTamperExpl.textContent = valid === false
-    ? 'The message content changed after signing. The demo ran SPHINCS+ verify() on the changed bytes and stored signature; verification returned false.'
-    : 'Unexpected result: verification did not reject the changed entry.';
-  ledgerTamperExpl.classList.remove('hidden');
-  renderLedger();
-  btnLedgerTamper.disabled = false;
+  let explanation = '';
+  await runLedgerAction(async () => {
+    const valid = await ledger.tamperEntry(latest.id, latest.message + ' [TAMPERED]');
+    explanation = valid === false
+      ? 'The message content changed after signing. The demo ran SPHINCS+ verify() on the changed bytes and stored signature; verification returned false.'
+      : 'Unexpected result: verification did not reject the changed entry.';
+  });
+  if (explanation && latest.valid !== null) {
+    ledgerTamperExpl.textContent = explanation;
+    ledgerTamperExpl.classList.remove('hidden');
+  }
+});
+
+btnLedgerMetadata.addEventListener('click', async () => {
+  await runLedgerAction(() => {
+    const latest = ledger.entries.at(-1)!;
+    latest.author = 'Mallory'; latest.timestamp = '1900-01-01';
+  }, 'Only the unsigned label and timestamp changed. The author/time were never signed; the real message-signature check does not authenticate them.');
+});
+
+btnLedgerReverse.addEventListener('click', async () => {
+  await runLedgerAction(() => { ledger.entries.reverse(); },
+    'The entries were reordered. No signed sequence or predecessor commitment is checked; valid message signatures do not authenticate this order.');
+});
+
+btnLedgerRemove.addEventListener('click', async () => {
+  await runLedgerAction(() => { ledger.entries.pop(); },
+    'An entry was removed. The remaining signatures can still verify; there is no trusted checkpoint establishing completeness or detecting truncation.');
+});
+
+btnLedgerReplaceKey.addEventListener('click', async () => {
+  await runLedgerAction(async () => {
+    const latest = ledger.entries.at(-1)!;
+    const replacement = await generateKeyPair(latest.paramSet);
+    const signature = await sign(replacement.privateKey, new TextEncoder().encode(latest.message), latest.paramSet);
+    latest.publicKey = replacement.publicKey; latest.signature = signature;
+  }, 'This entry now supplies a newly generated key and signature over the same message. This is ordinary signing with a different private key, not a forgery under the original key. Without trusted key-to-author binding, verification does not establish the typed author.');
 });
 
 btnLedgerClear.addEventListener('click', () => {

@@ -16,7 +16,7 @@ This project is a browser demo of SLH-DSA (SPHINCS+), with supporting SHA-256 Me
 
 **[systemslibrarian.github.io/crypto-lab-sphincs-ledger](https://systemslibrarian.github.io/crypto-lab-sphincs-ledger/)**
 
-The demo lets you generate keys, sign messages, verify signatures, inspect a SHA-256 Merkle tree authentication path, experiment with a WOTS+ chain reveal, and append signed entries to a browser-side ledger. The main controls are the Parameter set selector, Message to sign textarea, Number of leaves selector, Message nibble input, and Chain index input.
+The demo lets you generate keys, sign messages, verify signatures, inspect a SHA-256 Merkle tree authentication path, experiment with a WOTS+ chain reveal, and collect independently signed message bytes. The collection is not an append-only authenticated ledger: author/time are unsigned, order and completeness are unprotected, and a fresh self-supplied key does not establish the typed author's identity. The reference tab demonstrates metadata edits, reordering, removal and replacement with a new key/signature alongside real changed-message rejection. Reloaded signatures remain unverified until the verifier runs. The main controls are the Parameter set selector, Message to sign textarea, Number of leaves selector, Message nibble input, and Chain index input.
 
 ## What Can Go Wrong
 
