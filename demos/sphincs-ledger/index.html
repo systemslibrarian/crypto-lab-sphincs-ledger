@@ -532,6 +532,18 @@
             <div id="speed-chart" role="img" aria-label="Bar chart comparing signing speeds across parameter sets"></div>
           </div>
         </section>
+        <section class="panel" id="limited-signature-use" aria-labelledby="budget-heading">
+          <h2 id="budget-heading">Draft SLH-DSA tradeoff: signatures per key</h2>
+          <p><a href="https://csrc.nist.gov/pubs/sp/800/230/ipd" target="_blank" rel="noopener noreferrer">NIST SP 800-230, initial public draft (13 April 2026)</a> proposes six additional limited-use parameter sets with smaller signatures and faster verification, subject to a <strong>2²⁴-signature lifetime limit per key</strong>. The comment period closed 12 June; this is still a draft, not general-purpose approval.</p>
+          <div class="budget-controls">
+            <label>Daily signatures across all workers <input id="budget-daily" type="number" min="0" step="1" value="1000"></label>
+            <label>Years of use (365 days each) <input id="budget-years" type="number" min="1" step="1" value="10"></label>
+            <label>Independently managed keys <input id="budget-keys" type="number" min="1" step="1" value="1"></label>
+          </div>
+          <p id="budget-result" role="status" aria-live="polite"></p>
+          <p>This calculator assumes balanced allocation and counts every signing operation, not just unique messages. Replicas sharing a key share its budget; they are not independent keys. It is not a durable usage counter. The signing controls above still run the existing FIPS 205 parameter sets, not these draft variants.</p>
+          <p><a href="https://systemslibrarian.github.io/crypto-lab-pq-chooser/">PQ Chooser</a> keeps draft variants outside its executable size and performance rankings.</p>
+        </section>
       </main>
 
     </div>

@@ -1,4 +1,6 @@
 import './styles.css';
+import { bindSignatureBudget } from './signature-budget';
+bindSignatureBudget();
 import {
   generateKeyPair,
   sign,

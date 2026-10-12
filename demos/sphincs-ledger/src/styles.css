@@ -871,3 +871,11 @@ fieldset {
   .tab.active { border-bottom: 3px solid currentColor; }
   .highlight-box { border-left: 3px solid currentColor; }
 }
+
+#limited-signature-use { padding: 1.25rem; margin-top: 1.5rem; line-height: 1.65; }
+#limited-signature-use p { margin-top: .75rem; }
+.budget-controls { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+.budget-controls label { flex: 1 1 12rem; min-width: 0; }
+.budget-controls input { display: block; width: 100%; min-height: 44px; margin-top: .4rem; }
+
+#limited-signature-use a { color: inherit; text-decoration: underline; }

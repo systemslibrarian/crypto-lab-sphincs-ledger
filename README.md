@@ -68,3 +68,7 @@ No environment variables are required.
 *Part of the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
 
 *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
+
+## Limited-use SLH-DSA draft
+
+The live demo includes a dated [SP 800-230 initial-public-draft reference](https://csrc.nist.gov/pubs/sp/800/230/ipd) (13 April 2026), with its 2²⁴-signature per-key limit and explicit non-final, non-general-purpose scope. SPHINCS Ledger provides a workload budget model, not a durable signing counter; PQ Chooser keeps the draft variants unranked and outside measured exports. Existing FIPS 205 executable parameter sets remain the ones these labs sign and measure.
