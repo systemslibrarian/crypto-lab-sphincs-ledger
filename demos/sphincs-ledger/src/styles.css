@@ -879,3 +879,4 @@ fieldset {
 .budget-controls input { display: block; width: 100%; min-height: 44px; margin-top: .4rem; }
 
 #limited-signature-use a { color: inherit; text-decoration: underline; }
+.security-section p a { color: inherit; text-decoration: underline; }
