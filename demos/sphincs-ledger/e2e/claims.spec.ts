@@ -1,5 +1,19 @@
 import { expect, test } from '@playwright/test';
 
+test('security tab scopes the SLH-DSA power-analysis result to its implementation model', async ({ page }) => {
+  await page.goto('.');
+  await page.locator('#tab-btn-security').click();
+  const note = page.locator('#slh-dsa-leakage-note');
+  await expect(note).toBeVisible();
+  await expect(note).toContainText('preprint; attack-model-conditional');
+  await expect(note).toContainText('24 October 2026');
+  await expect(note).toContainText('SLH-DSA-SHAKE');
+  await expect(note).toContainText('physical power measurements');
+  await expect(note).toContainText('This demo uses SHA-2 variants only');
+  await expect(note).toContainText('does not establish that the browser engine is vulnerable');
+  await expect(note.locator('a')).toHaveAttribute('href', 'https://eprint.iacr.org/2026/2584');
+});
+
 test('schematics and checksum-free chain demo state their actual evidence boundary', async ({ page }) => {
   await page.goto('.');
   await expect(page.locator('#peek-card')).toContainText('illustrative leaf-to-root path');

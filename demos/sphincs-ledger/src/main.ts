@@ -1178,14 +1178,27 @@ document.getElementById('security-content')!.innerHTML = `
   <div class="security-section">
     <h3>The Hash-Only Security Argument</h3>
     <div class="highlight-box">
-      <strong>"If SHA-256 is secure, SPHINCS+ is secure."</strong><br>
-      SLH-DSA's security reduces entirely to standard properties of its underlying hash function:
+      <strong>Hash-based mathematical assumptions; implementation security matters too.</strong><br>
+      SLH-DSA's security proofs rely on properties of its underlying hash construction:
       PRF security, second-preimage / target-collision resistance, and interleaved target-subset
       resilience. It deliberately does <strong>not</strong> require plain collision resistance —
       that is why an <em>n</em> = 16-byte parameter set can still claim 128-bit security, where
       collision resistance alone would cap it at 64 bits. There are no number-theoretic assumptions
       (factoring, discrete log, lattice problems) that could be independently broken.
     </div>
+  </div>
+
+  <div class="security-section" id="slh-dsa-leakage-note">
+    <h3>Power Leakage Is a Separate Security Question</h3>
+    <p>A sound hash function does not stop a device from leaking secret values while signing.
+    <a href="https://eprint.iacr.org/2026/2584" target="_blank" rel="noopener noreferrer">SHAKEing SLH-DSA with Non-profiled SCAs</a>
+    (received 21 October; approved 24 October 2026) is a <strong>preprint; attack-model-conditional</strong>.
+    The authors report full secret-seed recovery using non-profiled correlation power analysis
+    on SLH-DSA-SHAKE on a 32-bit microcontroller, enabling forgery. The attack requires
+    <strong>physical power measurements</strong>; it is not a mathematical break of SLH-DSA or SHAKE.</p>
+    <p><strong>This demo uses SHA-2 variants only.</strong> It does not reproduce the power experiment,
+    and this result does not establish that the browser engine is vulnerable. The lesson is that
+    mathematical assumptions and protection against implementation leakage are separate requirements.</p>
   </div>
 
   <div class="security-section">

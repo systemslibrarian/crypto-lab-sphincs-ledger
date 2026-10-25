@@ -23,7 +23,8 @@ The demo lets you generate keys, sign messages, verify signatures, inspect a SHA
 - **Very large signatures** — SLH-DSA signatures are far larger than RSA, Ed25519, or ML-DSA; dropping them into bandwidth- or latency-sensitive protocols can break those protocols.
 - **Slow signing** — the conservative hash-based construction makes signature generation comparatively expensive, a poor fit for high-throughput signing.
 - **Parameter-set tradeoffs** — the "fast" vs "small" SLH-DSA variants trade signature size against speed; choosing the wrong profile for the workload hurts either bandwidth or latency.
-- **Security rests entirely on the hash function** — SLH-DSA has no number-theoretic fallback, so the approved SHA-2/SHAKE parameter sets must be used exactly as standardized.
+- **Mathematical assumptions are hash-based** — SLH-DSA has no number-theoretic assumption, but its implementation must also protect secret values against leakage. Use the standardized parameter sets and a reviewed implementation.
+- **Power leakage can bypass mathematical hardness** — [*SHAKEing SLH-DSA with Non-profiled SCAs*, ePrint 2026/2584](https://eprint.iacr.org/2026/2584), received 21 October and approved 24 October 2026, is a **preprint; attack-model-conditional**. The authors report non-profiled correlation power analysis recovering a full secret seed in SLH-DSA-SHAKE experiments on a 32-bit microcontroller, enabling forgery. This requires physical power measurements; it is not a mathematical break of SLH-DSA or SHAKE. This browser demo implements SHA-2 variants only, does not reproduce the power experiment, and is not shown vulnerable by that result. The visible **Security Basis** tab explains this distinction.
 - **Misreading the educational tabs** — the Merkle-tree and WOTS+ views are simplified pedagogical primitives, not the full SLH-DSA hypertree; only the SLH-DSA path is the real signing scheme.
 
 ## Real-World Usage
