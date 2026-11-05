@@ -1196,9 +1196,16 @@ document.getElementById('security-content')!.innerHTML = `
     The authors report full secret-seed recovery using non-profiled correlation power analysis
     on SLH-DSA-SHAKE on a 32-bit microcontroller, enabling forgery. The attack requires
     <strong>physical power measurements</strong>; it is not a mathematical break of SLH-DSA or SHAKE.</p>
-    <p><strong>This demo uses SHA-2 variants only.</strong> It does not reproduce the power experiment,
-    and this result does not establish that the browser engine is vulnerable. The lesson is that
-    mathematical assumptions and protection against implementation leakage are separate requirements.</p>
+    <p><strong>This demo uses SHA-2 variants only.</strong> The SHAKE experiment above does not
+    establish that the browser engine is vulnerable.</p>
+    <p>A separate <a href="https://eprint.iacr.org/2026/2753" target="_blank" rel="noopener noreferrer">SHA-2 SLH-DSA power-analysis preprint</a>
+    (4 November 2026) reports non-profiled correlation power analysis of all six SHA-2 parameter
+    sets on an STM32F303 Cortex-M4, using 5,000 power traces per seed in its tested conditions.
+    Its recovery rates are <strong>conditional stage results</strong>: each stage is evaluated with
+    preceding secret values supplied correctly, not as an end-to-end full-seed recovery rate.
+    This requires physical power measurements on that implementation; the paper does not show a
+    mathematical break or a vulnerability in this browser demo. Hash-based mathematical security
+    and protection against implementation leakage are separate requirements.</p>
   </div>
 
   <div class="security-section">

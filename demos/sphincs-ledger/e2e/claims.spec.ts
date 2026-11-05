@@ -11,7 +11,12 @@ test('security tab scopes the SLH-DSA power-analysis result to its implementatio
   await expect(note).toContainText('physical power measurements');
   await expect(note).toContainText('This demo uses SHA-2 variants only');
   await expect(note).toContainText('does not establish that the browser engine is vulnerable');
-  await expect(note.locator('a')).toHaveAttribute('href', 'https://eprint.iacr.org/2026/2584');
+  await expect(note.locator('a[href="https://eprint.iacr.org/2026/2584"]')).toBeVisible();
+  await expect(note).toContainText('all six SHA-2 parameter');
+  await expect(note).toContainText('conditional stage results');
+  await expect(note).toContainText('not as an end-to-end full-seed recovery rate');
+  await expect(note).toContainText('physical power measurements');
+  await expect(note.locator('a[href="https://eprint.iacr.org/2026/2753"]')).toBeVisible();
 });
 
 test('schematics and checksum-free chain demo state their actual evidence boundary', async ({ page }) => {
