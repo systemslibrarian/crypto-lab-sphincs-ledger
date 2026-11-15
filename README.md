@@ -46,11 +46,13 @@ npm run dev
 
 ## Related Demos
 
-- [crypto-lab-lms-ledger](https://systemslibrarian.github.io/crypto-lab-lms-ledger/) — LMS/HSS with W-OTS+, the stateful hash-based signature family (NIST SP 800-208).
+- [crypto-lab-lms-ledger](https://systemslibrarian.github.io/crypto-lab-lms-ledger/) — LMS/HSS with LM-OTS one-time signatures ([RFC 8554 §4](https://www.rfc-editor.org/rfc/rfc8554.html#section-4)), the stateful hash-based signature family (NIST SP 800-208).
 - [crypto-lab-lms-xmss](https://systemslibrarian.github.io/crypto-lab-lms-xmss/) — LMS and LM-OTS internals, contrasting stateful trees with SLH-DSA's stateless design.
 - [crypto-lab-dilithium-seal](https://systemslibrarian.github.io/crypto-lab-dilithium-seal/) — ML-DSA (FIPS 204), the lattice PQ signature with far smaller signatures.
 - [crypto-lab-falcon-seal](https://systemslibrarian.github.io/crypto-lab-falcon-seal/) — Falcon (FN-DSA), the compact NTRU-lattice PQ signature.
 - [crypto-lab-merkle-vault](https://systemslibrarian.github.io/crypto-lab-merkle-vault/) — SHA-256 Merkle trees and inclusion proofs, the structure underpinning hash-based signatures.
+
+**Standards reviewed 15 November 2026:** the lms-ledger entry above previously said "W-OTS+". LMS builds on LM-OTS ([RFC 8554 §4](https://www.rfc-editor.org/rfc/rfc8554.html#section-4)); WOTS+ ([RFC 8391 §3.1](https://www.rfc-editor.org/rfc/rfc8391.html#section-3.1)) is the XMSS family's one-time scheme.
 
 ## Project Layout
 
