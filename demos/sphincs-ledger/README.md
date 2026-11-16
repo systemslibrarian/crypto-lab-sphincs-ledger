@@ -109,7 +109,7 @@ WCAG 2.0/2.1 A + AA violations in both themes.
 - **Import:** `@noble/post-quantum/slh-dsa.js`
 - **Functions:** `keygen()`, `sign(msg, secretKey)`, `verify(sig, msg, publicKey)`
 
-## Parameter Set Reference (NIST FIPS 205 Table 1)
+## Parameter Set Reference (NIST FIPS 205 Table 2)
 
 | Parameter Set | Public Key | Private Key | Signature | Security Level |
 |---|---|---|---|---|
