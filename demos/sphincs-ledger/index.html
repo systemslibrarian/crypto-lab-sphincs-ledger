@@ -286,7 +286,7 @@
         <section id="tab-wots" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-btn-wots">
           <div class="card">
             <h2>WOTS+ One-Time Signature Chains</h2>
-            <p class="muted"><strong>Illustrative demonstration</strong> — shows the hash-chain concept underlying <span class="gloss" title="WOTS+: a one-time signature. One key signs exactly one message safely; a second use lets an attacker forge.">WOTS+</span> (FIPS 205, Section 4). Signing reveals one point per chain, chosen by a message <span class="gloss" title="Nibble: half a byte — 4 bits, a value 0–15. WOTS+ signs the message hash one nibble at a time.">nibble</span>. Not a production implementation.</p>
+            <p class="muted"><strong>Illustrative demonstration</strong> — shows the hash-chain concept underlying <span class="gloss" title="WOTS+: a one-time signature. One key signs exactly one message safely; a second use lets an attacker forge.">WOTS+</span> (FIPS 205, Section 5). Signing reveals one point per chain, chosen by a message <span class="gloss" title="Nibble: half a byte — 4 bits, a value 0–15. WOTS+ signs the message hash one nibble at a time.">nibble</span>. Not a production implementation.</p>
             <button id="btn-gen-wots" class="btn-primary" aria-label="Generate a new WOTS+ key with 4 hash chains">Generate WOTS+ Key (4 chains, w=16)</button>
             <div id="wots-chains" role="img" tabindex="0" aria-label="WOTS+ hash chain visualization (scrollable)"></div>
             <fieldset class="controls-row" id="wots-sign-controls" style="display:none">

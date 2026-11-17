@@ -1,7 +1,7 @@
 // WOTS+ (Winternitz One-Time Signature) — Simplified Demonstration
 // This is an ILLUSTRATIVE implementation showing the hash-chain concept,
 // NOT a production WOTS+ implementation.
-// Reference: NIST FIPS 205, Section 4 — WOTS+ one-time signatures
+// Reference: NIST FIPS 205, Section 5 — "Winternitz One-Time Signature Plus Scheme"
 // https://csrc.nist.gov/pubs/fips/205/final
 
 import { sha256, sha256Hex } from './hash';

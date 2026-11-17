@@ -1,6 +1,7 @@
 // Merkle tree construction using real SHA-256 via Web Crypto API
 // Used to demonstrate the hash-tree structure underlying SPHINCS+ / SLH-DSA
-// Reference: NIST FIPS 205, Section 5 — XMSS Merkle tree construction
+// Reference: NIST FIPS 205, Section 6.1 — Generating a Merkle Hash Tree,
+// in Section 6 "eXtended Merkle Signature Scheme (XMSS)"
 
 import { sha256Hex, concatBytes, hexToBytes } from './hash';
 
