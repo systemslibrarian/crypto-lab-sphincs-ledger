@@ -1,7 +1,10 @@
 // SLH-DSA structural parameters — sourced DIRECTLY from @noble/post-quantum.
 //
-// These are the REAL FIPS 205 Table 2 values used by the audited library that
-// performs the actual signing in this demo. We read them out of noble's exported
+// These are the REAL FIPS 205 Table 2 values used by the library that performs
+// the actual signing in this demo. That library is @noble/post-quantum, whose
+// own README says "The library has not been independently audited yet" and
+// records only a self-audit at v0.6.1 (April 2026); this lab pins v0.7.1. We
+// read the values out of noble's exported
 // `PARAMS` map rather than re-typing them, so the FORS / hypertree tabs surface
 // the genuine k, a, t, d, h, h' that were previously invisible in the UI.
 //

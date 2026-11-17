@@ -138,7 +138,7 @@ the `s` sets use **fewer tall** ones:
 
 | Component | Status |
 |---|---|
-| SPHINCS+ sign/verify (`@noble/post-quantum`) | **Production** — audited library implementing FIPS 205 |
+| SPHINCS+ sign/verify (`@noble/post-quantum`) | **Production** — a real FIPS 205 implementation, but not an audited one: its own README states “The library has not been independently audited yet”, and records a self-audit at v0.6.1 (April 2026), earlier than the v0.7.1 pinned here |
 | SHA-256 hashing (Web Crypto API) | **Production** — browser-native implementation |
 | Parameter values `k, a, t, d, h, h′` | **Real** — read live from noble's exported `PARAMS` (FIPS 205 Table 2) |
 | `base_2b` digest→index slicing (FORS) | **Spec-exact** — FIPS 205 Algorithm 4, unit-tested |
