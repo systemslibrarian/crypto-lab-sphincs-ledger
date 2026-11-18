@@ -165,6 +165,31 @@ test('two signatures on one key: the forgery SUCCEEDS and the page runs the veri
   expect(text).toContain('pay 1000000 to Mallory');
 });
 
+for (const [paramSet, mgf1] of [
+  ['sha2-128f', 'MGF1-SHA-256'],
+  ['sha2-256f', 'MGF1-SHA-512'],
+]) {
+  test(`tamper explanations match the real verifier for ${paramSet}`, async ({ page }) => {
+    await page.goto('.');
+    await page.locator('#param-select').selectOption(paramSet);
+    await page.locator('#btn-generate').click();
+    await page.locator('#btn-verify').click();
+    await expect(page.locator('#verify-output')).toContainText('VERIFIED');
+
+    const result = page.locator('#tamper-output');
+    await page.locator('#btn-tamper-sig').click();
+    await expect(result.locator('.badge-invalid')).toHaveText('REJECTED');
+    await expect(result).toContainText('first byte of the signature randomizer R');
+    await expect(result).toContainText(`recomputes H_msg with ${mgf1}`);
+    await expect(result).toContainText('rebuilt hypertree root differs');
+
+    await page.locator('#btn-tamper-msg').click();
+    await expect(result.locator('.badge-invalid')).toHaveText('REJECTED');
+    await expect(result).toContainText(`changed message gives a different H_msg (using ${mgf1})`);
+    await expect(result).toContainText('rebuilt hypertree root differs');
+  });
+}
+
 test('ledger tampering reports the real verifier result', async ({ page }) => {
   await page.goto('.');
   await page.locator('#tab-btn-ledger').click();

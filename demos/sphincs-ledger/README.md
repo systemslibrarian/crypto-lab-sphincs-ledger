@@ -154,7 +154,7 @@ the `s` sets use **fewer tall** ones:
 
 - **Parameter internals are now surfaced, and they are real.** The FORS and Hypertree tabs read `k, a, t, d, h, h′` from `@noble/post-quantum`'s exported `PARAMS` — the same library that signs. They are not hand-typed constants.
 - **FORS/Hypertree are a *parallel pedagogical reconstruction*, not an inspection of noble.** noble's public API exposes only `keygen`/`sign`/`verify`/`lengths` on the signer — never its internal FORS leaves, trees, or hypertree nodes. So those structures are an independent educational model in `src/crypto/fors.ts` and `src/visualization/`. Only the parameter *values* come from noble; the constructions do not.
-- **SHA-2 only. No SHAKE/SHA-3 anywhere.** Every hash in this demo is SHA-256 (Web Crypto). The four parameter sets are the SHA-2 variants only.
+- **SHA-2 only.** The SHA2-128f/s signers use SHA-256 throughout. In SHA2-256f/s, PRF and F use SHA-256, while H and Tℓ use SHA-512, PRF_msg uses HMAC-SHA-512, and H_msg uses SHA-512 with MGF1-SHA-512 ([FIPS 205 §§11.2.1–11.2.2](https://doi.org/10.6028/NIST.FIPS.205)). The teaching models use SHA-256 via Web Crypto.
 - **No 192-bit tier.** Only 128- and 256-bit, each in `f` (fast) and `s` (small). This matches the four sets wired to noble in Tab 1.
 - **Display-scaled / reconstructed values** are enumerated in `NOTES-scaled-values.md`. In short: FORS trees are drawn and rooted at a reduced height (real `t` = 64–16,384 leaves is too many to draw or hash literally — the real index/`t` is always printed on the amber leaf); the FORS digest is modeled with SHA-256 + MGF1 rather than the full FIPS 205 transcript hash; XMSS trees in the hypertree are schematic triangles; and the checksum-free WOTS+ model demonstrates derivation of higher values on one exposed chain, not a complete WOTS+ signature forgery. The checksum-complete WOTS+ panel keeps the digit/checksum mechanics, narrows the message digest to 24 bits, and uses 32-byte SHA-256 chain values and simplified addressing. Its standard-width comparison follows the selected signer; these model limits are stated on the page and detailed in §5b of that file.
 - **The complete WOTS+ forgery is real, and so is its failure.** With one signature observed the search genuinely cannot forge, and the page reports the refusal with its own counts rather than a shrug; with two signatures under one key it genuinely can, and the "succeeded" verdict is the return value of `wotsPlusVerify()` against the honest public key. Because the digest is only 24 bits, a lucky hit could be a plain digest collision rather than a checksum break — the code detects that case (`collidesWithObserved`) and the page attributes it to the collision explicitly.
@@ -166,7 +166,7 @@ the `s` sets use **fewer tall** ones:
 |---|---|
 | Frontend | Vite + TypeScript |
 | SPHINCS+ | `@noble/post-quantum` (FIPS 205) |
-| Hash function | SHA-256 via Web Crypto API |
+| Teaching model hash function | SHA-256 via Web Crypto API |
 | Visualization | SVG — vanilla TypeScript |
 | UI | Vanilla TypeScript — no framework |
 

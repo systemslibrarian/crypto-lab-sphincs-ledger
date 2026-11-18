@@ -294,10 +294,11 @@ btnTamperSig.addEventListener('click', async () => {
   if (!currentKeyPair || !currentSignature || !currentMessage) return;
   const tampered = new Uint8Array(currentSignature);
   tampered[0] ^= 0x01; // flip one bit of the first byte
+  const mgf1 = PARAM_SIZES[currentParamSet].security === 128 ? 'MGF1-SHA-256' : 'MGF1-SHA-512';
   const valid = await verify(currentKeyPair.publicKey, currentMessage, tampered, currentParamSet);
   tamperOutput.innerHTML = valid
     ? `<span class="badge badge-valid">VERIFIED</span> — unexpected!`
-    : `<span class="badge badge-invalid">REJECTED</span> — flipped 1 byte in signature (byte[0] XOR 0x01). SHA-256 digest mismatch causes SPHINCS+ verification to fail.`;
+    : `<span class="badge badge-invalid">REJECTED</span> — flipped one bit in byte[0], the first byte of the signature randomizer R. Verification recomputes H_msg with ${mgf1} using the altered R, the public key, and the message. The rebuilt hypertree root differs from the public key’s root.`;
   tamperOutput.classList.remove('hidden');
 });
 
@@ -305,10 +306,11 @@ btnTamperMsg.addEventListener('click', async () => {
   if (!currentKeyPair || !currentSignature || !currentMessage) return;
   const tampered = new Uint8Array(currentMessage);
   tampered[0] ^= 0x01;
+  const mgf1 = PARAM_SIZES[currentParamSet].security === 128 ? 'MGF1-SHA-256' : 'MGF1-SHA-512';
   const valid = await verify(currentKeyPair.publicKey, tampered, currentSignature!, currentParamSet);
   tamperOutput.innerHTML = valid
     ? `<span class="badge badge-valid">VERIFIED</span> — unexpected!`
-    : `<span class="badge badge-invalid">REJECTED</span> — flipped 1 byte in message (byte[0] XOR 0x01). The modified message hashes to a different SHA-256 digest, which does not match the signed digest.`;
+    : `<span class="badge badge-invalid">REJECTED</span> — flipped one bit in the first message byte. The changed message gives a different H_msg (using ${mgf1}), so the rebuilt hypertree root differs from the public key’s root.`;
   tamperOutput.classList.remove('hidden');
 });
 
@@ -1239,7 +1241,7 @@ document.getElementById('security-content')!.innerHTML = `
       <tbody>
         <tr><td>Integer factoring</td><td>~50 years</td><td>RSA</td></tr>
         <tr><td>Elliptic curve DLP</td><td>~35 years</td><td>ECDSA, Ed25519</td></tr>
-        <tr><td>SHA-256 (hash functions)</td><td>~25 years</td><td>SLH-DSA (SPHINCS+)</td></tr>
+        <tr><td>SHA-2 (SHA-256 and SHA-512)</td><td>~25 years</td><td>SLH-DSA (SHA-2 sets)</td></tr>
         <tr><td>LWE (lattices)</td><td>~20 years</td><td>ML-DSA (Dilithium), ML-KEM</td></tr>
       </tbody>
     </table></div>
