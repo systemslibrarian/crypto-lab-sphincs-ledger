@@ -14,7 +14,9 @@ test('security tab scopes the SLH-DSA power-analysis result to its implementatio
   await expect(note.locator('a[href="https://eprint.iacr.org/2026/2584"]')).toBeVisible();
   await expect(note).toContainText('all six SHA-2 parameter');
   await expect(note).toContainText('conditional stage results');
-  await expect(note).toContainText('not as an end-to-end full-seed recovery rate');
+  for (const text of ['revised 20 November 2026', 'chained full-seed recovery', 'all nine seed–signature cases', 'three seeds, three signatures each', 'not continuous signing traces', 'remains unvalidated']) {
+    await expect(note).toContainText(text);
+  }
   await expect(note).toContainText('physical power measurements');
   await expect(note.locator('a[href="https://eprint.iacr.org/2026/2753"]')).toBeVisible();
 });

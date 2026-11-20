@@ -1201,13 +1201,14 @@ document.getElementById('security-content')!.innerHTML = `
     <p><strong>This demo uses SHA-2 variants only.</strong> The SHAKE experiment above does not
     establish that the browser engine is vulnerable.</p>
     <p>A separate <a href="https://eprint.iacr.org/2026/2753" target="_blank" rel="noopener noreferrer">SHA-2 SLH-DSA power-analysis preprint</a>
-    (4 November 2026) reports non-profiled correlation power analysis of all six SHA-2 parameter
-    sets on an STM32F303 Cortex-M4, using 5,000 power traces per seed in its tested conditions.
-    Its recovery rates are <strong>conditional stage results</strong>: each stage is evaluated with
-    preceding secret values supplied correctly, not as an end-to-end full-seed recovery rate.
-    This requires physical power measurements on that implementation; the paper does not show a
-    mathematical break or a vulnerability in this browser demo. Hash-based mathematical security
-    and protection against implementation leakage are separate requirements.</p>
+    (published 4 November; revised 20 November 2026) studies all six SHA-2 parameter sets on an STM32F303 Cortex-M4.
+    Its baseline reports <strong>conditional stage results</strong>, with preceding secret values supplied correctly.
+    The revision also reports <strong>chained full-seed recovery</strong>: WOTS+ compression-round CPA recovered
+    the seed in all nine seed–signature cases per parameter set (three seeds, three signatures each).
+    These are <strong>individually measured PRF calls, not continuous signing traces</strong>;
+    identifying and segmenting those calls in a complete signing trace remains unvalidated.
+    This preprint requires physical power measurements and does not demonstrate a mathematical break
+    or a vulnerability in this browser demo.</p>
   </div>
 
   <div class="security-section">
